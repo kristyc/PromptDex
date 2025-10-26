@@ -1,0 +1,58 @@
+{
+  "manifest_version": 3,
+  "name": "PromptDex",
+  "version": "1.0.0",
+  "description": "Your personal prompt library - save, organize, and deploy AI prompts instantly",
+  
+  "permissions": [
+    "identity",
+    "storage",
+    "activeTab",
+    "contextMenus",
+    "notifications"
+  ],
+  
+  "host_permissions": [
+    "https://chat.openai.com/*",
+    "https://claude.ai/*"
+  ],
+  
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_title": "PromptDex"
+  },
+  
+  "background": {
+    "service_worker": "background/background.js"
+  },
+  
+  "content_scripts": [
+    {
+      "matches": [
+        "https://chat.openai.com/*",
+        "https://claude.ai/*"
+      ],
+      "js": ["content/content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  
+  "commands": {
+    "open-prompt-picker": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+P"
+      },
+      "description": "Open prompt picker"
+    }
+  },
+  
+  "web_accessible_resources": [
+    {
+      "resources": ["lib/*"],
+      "matches": [
+        "https://chat.openai.com/*",
+        "https://claude.ai/*"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+    
+    body {
+      width: 420px;
+      min-height: 520px;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Inter', sans-serif;
+      font-size: 14px;
+      background: #0f0f23;
+      color: #e2e8f0;
+      overflow: hidden;
+    }
+    
+    .container {
+      padding: 20px;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid #1e293b;
+    }
+    
+    .title {
+      font-size: 18px;
+      font-weight: 700;
+      color: #f1f5f9;
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    
+    .settings-btn {
+      background: none;
+      border: none;
+      color: #64748b;
+      font-size: 18px;
+      cursor: pointer;
+      padding: 4px;
+      border-radius: 4px;
+      transition: all 0.2s;
+    }
+    
+    .settings-btn:hover {
+      color: #94a3b8;
+      background: #1e293b;
+    }
+    
+    .auth-status {
+      font-size: 11px;
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    
+    .auth-status.connected {
+      background: #059669;
+      color: #ecfdf5;
+    }
+    
+    .auth-status.disconnected {
+      background: #dc2626;
+      color: #fef2f2;
+    }
+    
+    .auth-status.setup-needed {
+      background: #d97706;
+      color: #fef3c7;
+    }
+    
+    .search-box {
+      width: 100%;
+      padding: 12px 16px;
+      border: 1px solid #334155;
+      border-radius: 10px;
+      margin-bottom: 16px;
+      font-size: 14px;
+      background: #1e293b;
+      color: #e2e8f0;
+      transition: all 0.2s;
+    }
+    
+    .search-box:focus {
+      outline: none;
+      border-color: #6366f1;
+      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+    }
+    
+    .search-box::placeholder {
+      color: #64748b;
+    }
+    
+    .categories {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 16px;
+      overflow-x: auto;
+      padding-bottom: 4px;
+    }
+    
+    .categories::-webkit-scrollbar {
+      height: 2px;
+    }
+    
+    .categories::-webkit-scrollbar-track {
+      background: #1e293b;
+    }
+    
+    .categories::-webkit-scrollbar-thumb {
+      background: #475569;
+      border-radius: 2px;
+    }
+    
+    .category-tab {
+      padding: 8px 14px;
+      border: 1px solid #334155;
+      border-radius: 20px;
+      background: #1e293b;
+      cursor: pointer;
+      white-space: nowrap;
+      font-size: 12px;
+      font-weight: 600;
+      color: #94a3b8;
+      transition: all 0.2s;
+    }
+    
+    .category-tab.active {
+      background: #6366f1;
+      color: white;
+      border-color: #6366f1;
+      box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+    }
+    
+    .category-tab:hover:not(.active) {
+      background: #334155;
+      border-color: #475569;
+    }
+    
+    .content-area {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+    
+    .prompts-list {
+      flex: 1;
+      overflow-y: auto;
+      margin-bottom: 16px;
+      min-height: 280px;
+    }
+    
+    .prompts-list::-webkit-scrollbar {
+      width: 4px;
+    }
+    
+    .prompts-list::-webkit-scrollbar-track {
+      background: #1e293b;
+      border-radius: 2px;
+    }
+    
+    .prompts-list::-webkit-scrollbar-thumb {
+      background: #475569;
+      border-radius: 2px;
+    }
+    
+    .prompt-item {
+      padding: 16px;
+      border: 1px solid #334155;
+      border-radius: 12px;
+      margin-bottom: 10px;
+      cursor: pointer;
+      transition: all 0.2s;
+      background: #1e293b;
+    }
+    
+    .prompt-item:hover {
+      background: #334155;
+      border-color: #6366f1;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    }
+    
+    .prompt-title {
+      font-weight: 600;
+      margin-bottom: 6px;
+      color: #f1f5f9;
+      font-size: 15px;
+    }
+    
+    .prompt-preview {
+      font-size: 12px;
+      color: #94a3b8;
+      line-height: 1.5;
+      margin-bottom: 8px;
+    }
+    
+    .prompt-category {
+      display: inline-block;
+      background: #374151;
+      color: #d1d5db;
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    
+    .actions {
+      display: flex;
+      gap: 10px;
+      padding-top: 16px;
+      border-top: 1px solid #1e293b;
+    }
+    
+    .btn {
+      flex: 1;
+      padding: 12px 16px;
+      border: none;
+      border-radius: 10px;
+      font-weight: 600;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+    
+    .btn-primary {
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      color: white;
+      box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+    }
+    
+    .btn-primary:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 16px rgba(99, 102, 241, 0.4);
+    }
+    
+    .btn-secondary {
+      background: #374151;
+      color: #d1d5db;
+      border: 1px solid #4b5563;
+    }
+    
+    .btn-secondary:hover {
+      background: #4b5563;
+      transform: translateY(-1px);
+    }
+    
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: #64748b;
+    }
+    
+    .empty-state h3 {
+      margin: 0 0 12px 0;
+      color: #94a3b8;
+      font-size: 18px;
+      font-weight: 600;
+    }
+    
+    .empty-state p {
+      margin: 0;
+      line-height: 1.5;
+    }
+    
+    .hidden {
+      display: none !important;
+    }
+    
+    /* Settings Panel */
+    .settings-panel {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: #0f0f23;
+      padding: 20px;
+      z-index: 100;
+      overflow-y: auto;
+    }
+    
+    .settings-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid #1e293b;
+    }
+    
+    .settings-title {
+      font-size: 18px;
+      font-weight: 700;
+      color: #f1f5f9;
+    }
+    
+    .close-btn {
+      background: none;
+      border: none;
+      color: #64748b;
+      font-size: 20px;
+      cursor: pointer;
+      padding: 4px;
+      border-radius: 4px;
+      transition: all 0.2s;
+    }
+    
+    .close-btn:hover {
+      color: #94a3b8;
+      background: #1e293b;
+    }
+    
+    /* Setup Wizard */
+    .setup-wizard {
+      margin-bottom: 30px;
+    }
+    
+    .wizard-step {
+      margin-bottom: 20px;
+      padding: 16px;
+      border: 1px solid #334155;
+      border-radius: 10px;
+      background: #1e293b;
+    }
+    
+    .wizard-step.completed {
+      border-color: #059669;
+      background: #064e3b;
+    }
+    
+    .wizard-step.active {
+      border-color: #6366f1;
+      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+    }
+    
+    .step-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    
+    .step-number {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: #374151;
+      color: #d1d5db;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 600;
+      font-size: 14px;
+    }
+    
+    .wizard-step.completed .step-number {
+      background: #059669;
+      color: white;
+    }
+    
+    .wizard-step.active .step-number {
+      background: #6366f1;
+      color: white;
+    }
+    
+    .step-title {
+      font-weight: 600;
+      color: #f1f5f9;
+      font-size: 15px;
+    }
+    
+    .step-description {
+      color: #94a3b8;
+      font-size: 13px;
+      line-height: 1.4;
+      margin-bottom: 12px;
+    }
+    
+    .step-action {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+    
+    .btn-wizard {
+      padding: 8px 16px;
+      border: none;
+      border-radius: 6px;
+      font-weight: 600;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    
+    .btn-wizard-primary {
+      background: #6366f1;
+      color: white;
+    }
+    
+    .btn-wizard-primary:hover {
+      background: #5855eb;
+    }
+    
+    .btn-wizard-secondary {
+      background: #374151;
+      color: #d1d5db;
+      border: 1px solid #4b5563;
+    }
+    
+    .btn-wizard-secondary:hover {
+      background: #4b5563;
+    }
+    
+    .form-group {
+      margin-bottom: 20px;
+    }
+    
+    .form-label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 600;
+      color: #f1f5f9;
+      font-size: 13px;
+    }
+    
+    .form-input {
+      width: 100%;
+      padding: 12px 16px;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      background: #1e293b;
+      color: #e2e8f0;
+      font-size: 14px;
+      transition: all 0.2s;
+    }
+    
+    .form-input:focus {
+      outline: none;
+      border-color: #6366f1;
+      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+    }
+    
+    .form-input::placeholder {
+      color: #64748b;
+    }
+    
+    .form-help {
+      margin-top: 6px;
+      font-size: 12px;
+      color: #64748b;
+      line-height: 1.4;
+    }
+    
+    .setup-link {
+      color: #6366f1;
+      text-decoration: none;
+    }
+    
+    .setup-link:hover {
+      text-decoration: underline;
+    }
+    
+    .status-indicator {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      margin-right: 8px;
+    }
+    
+    .status-connected {
+      background: #059669;
+    }
+    
+    .status-disconnected {
+      background: #dc2626;
+    }
+    
+    .status-setup {
+      background: #d97706;
+    }
+    
+    .collapsible-content {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.3s ease;
+    }
+    
+    .collapsible-content.expanded {
+      max-height: 500px;
+    }
+    
+    .copy-button {
+      background: #374151;
+      border: 1px solid #4b5563;
+      color: #d1d5db;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      cursor: pointer;
+      margin-left: 8px;
+    }
+    
+    .copy-button:hover {
+      background: #4b5563;
+    }
+    
+    .success-check {
+      color: #059669;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="title">PromptDex</div>
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <div id="authStatus" class="auth-status setup-needed">
+          <span class="status-indicator status-setup"></span>
+          Setup Needed
+        </div>
+        <button id="settingsBtn" class="settings-btn">⚙️</button>
+      </div>
+    </div>
+    
+    <input type="text" id="searchBox" class="search-box" placeholder="Search prompts...">
+    
+    <div class="categories" id="categories">
+      <div class="category-tab active" data-category="all">All</div>
+    </div>
+    
+    <div class="content-area">
+      <div class="prompts-list" id="promptsList">
+        <div class="empty-state">
+          <h3>Welcome to PromptDex</h3>
+          <p>Click the ⚙️ settings button to set up your Google Drive integration, then add your first prompt!</p>
+        </div>
+      </div>
+      
+      <div class="actions">
+        <button id="addPromptBtn" class="btn btn-primary">
+          ➕ Add Prompt
+        </button>
+        <button id="connectBtn" class="btn btn-secondary">
+          🔗 Connect Drive
+        </button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Settings Panel -->
+  <div id="settingsPanel" class="settings-panel hidden">
+    <div class="settings-header">
+      <div class="settings-title">Setup & Settings</div>
+      <button id="closeSettingsBtn" class="close-btn">&times;</button>
+    </div>
+    
+    <!-- Setup Wizard -->
+    <div class="setup-wizard">
+      <!-- Step 1: Create Project -->
+      <div class="wizard-step" id="step1">
+        <div class="step-header">
+          <div class="step-number">1</div>
+          <div class="step-title">Create Google Project</div>
+        </div>
+        <div class="step-description">
+          First, you'll need to create a Google Cloud project (it's free!). This only takes a minute.
+        </div>
+        <div class="step-action">
+          <a href="https://console.cloud.google.com/projectcreate" target="_blank" class="btn-wizard btn-wizard-primary">
+            🚀 Create Project
+          </a>
+          <button id="step1Done" class="btn-wizard btn-wizard-secondary">
+            ✓ I've created a project
+          </button>
+        </div>
+      </div>
+      
+      <!-- Step 2: Enable API -->
+      <div class="wizard-step" id="step2">
+        <div class="step-header">
+          <div class="step-number">2</div>
+          <div class="step-title">Enable Google Drive API</div>
+        </div>
+        <div class="step-description">
+          Enable the Google Drive API for your project so the extension can save your prompts.
+        </div>
+        <div class="step-action">
+          <a href="https://console.cloud.google.com/apis/library/drive.googleapis.com" target="_blank" class="btn-wizard btn-wizard-primary">
+            🔧 Enable API
+          </a>
+          <button id="step2Done" class="btn-wizard btn-wizard-secondary">
+            ✓ API is enabled
+          </button>
+        </div>
+      </div>
+      
+      <!-- Step 3: Create Credentials -->
+      <div class="wizard-step" id="step3">
+        <div class="step-header">
+          <div class="step-number">3</div>
+          <div class="step-title">Create OAuth Credentials</div>
+        </div>
+        <div class="step-description">
+          Create OAuth credentials so the extension can securely connect to your Google Drive.
+        </div>
+        <div class="collapsible-content" id="step3Details">
+          <div style="background: #374151; padding: 12px; border-radius: 6px; margin: 10px 0; font-size: 12px;">
+            <strong>Quick Setup:</strong><br>
+            1. Choose "Web application"<br>
+            2. Add this redirect URI: <code style="background: #1e293b; padding: 2px 4px; border-radius: 3px;">https://*.chromiumapp.org/*</code>
+            <button class="copy-button" onclick="navigator.clipboard.writeText('https://*.chromiumapp.org/*')">Copy</button><br>
+            3. Copy the Client ID (starts with numbers, ends with .apps.googleusercontent.com)
+          </div>
+        </div>
+        <div class="step-action">
+          <a href="https://console.cloud.google.com/apis/credentials/oauthclient" target="_blank" class="btn-wizard btn-wizard-primary">
+            🔑 Create Credentials
+          </a>
+          <button id="toggleStep3Details" class="btn-wizard btn-wizard-secondary">
+            📋 Show Details
+          </button>
+        </div>
+      </div>
+      
+      <!-- Step 4: Enter Client ID -->
+      <div class="wizard-step" id="step4">
+        <div class="step-header">
+          <div class="step-number">4</div>
+          <div class="step-title">Enter Your Client ID</div>
+        </div>
+        <div class="step-description">
+          Paste the Client ID from Google Cloud Console here. It should look like: 123456789-abc...xyz.apps.googleusercontent.com
+        </div>
+        <div class="form-group">
+          <input type="text" id="clientIdInput" class="form-input" placeholder="123456789-abcdefghijk.apps.googleusercontent.com">
+        </div>
+        <div class="step-action">
+          <button id="saveClientId" class="btn-wizard btn-wizard-primary">
+            💾 Save Client ID
+          </button>
+          <button id="testConnection" class="btn-wizard btn-wizard-secondary">
+            🔧 Test Connection
+          </button>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Additional Settings -->
+    <div class="form-group">
+      <label class="form-label">Storage Location</label>
+      <select id="storageSelect" class="form-input">
+        <option value="gdrive">Google Drive (Recommended)</option>
+        <option value="local" disabled>Local Storage (Coming Soon)</option>
+      </select>
+      <div class="form-help">
+        Your prompts will be stored securely in your Google Drive app data folder.
+      </div>
+    </div>
+  </div>
+  
+  <script src="popup.js"></script>
+</body>
+</html>
