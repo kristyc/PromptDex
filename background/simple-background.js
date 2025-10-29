@@ -1,31 +1,15 @@
-class SimpleBackgroundManager {
+// Simplified PromptDex Background Script
+// Only handles context menu for saving selected text
+
+class SimpleBackground {
   constructor() {
     this.init();
   }
-  
+
   init() {
-    this.setupCommandListeners();
-    this.setupMessageListeners();
     this.setupContextMenus();
   }
-  
-  setupCommandListeners() {
-    chrome.commands.onCommand.addListener((command) => {
-      console.log('Command received:', command);
-      if (command === 'open-prompt-picker') {
-        this.handleOpenPromptPicker();
-      }
-    });
-  }
-  
-  setupMessageListeners() {
-    chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-      console.log('Message received:', request);
-      this.handleMessage(request, sender, sendResponse);
-      return true; // Will respond asynchronously
-    });
-  }
-  
+
   setupContextMenus() {
     try {
       // Remove existing context menu items to avoid duplicates
@@ -38,7 +22,6 @@ class SimpleBackgroundManager {
           title: 'Save to PromptDex',
           contexts: ['selection']
         }, () => {
-          // Check for errors
           if (chrome.runtime.lastError) {
             console.error('Context menu creation error:', chrome.runtime.lastError);
           } else {
@@ -57,7 +40,7 @@ class SimpleBackgroundManager {
       console.error('Error setting up context menus:', error);
     }
   }
-  
+
   async handleSaveSelectedText(selectedText, tab) {
     try {
       console.log('Saving selected text:', selectedText);
@@ -76,7 +59,7 @@ class SimpleBackgroundManager {
       
       console.log('Created prompt:', newPrompt);
       
-      const success = await this.saveToLocalStorage(newPrompt);
+      const success = await this.saveToStorage(newPrompt);
       
       if (success) {
         this.showNotification('Text saved as prompt!', 'success');
@@ -90,7 +73,7 @@ class SimpleBackgroundManager {
       this.showNotification('Failed to save prompt', 'error');
     }
   }
-  
+
   generateTitleFromText(text) {
     try {
       // Extract first meaningful words as title
@@ -115,7 +98,7 @@ class SimpleBackgroundManager {
       return 'Custom Prompt';
     }
   }
-  
+
   categorizePrompt(content) {
     try {
       const lowerContent = content.toLowerCase();
@@ -139,12 +122,12 @@ class SimpleBackgroundManager {
       return 'general';
     }
   }
-  
+
   showNotification(message, type) {
     try {
       chrome.notifications.create({
         type: 'basic',
-        iconUrl: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDgiIGhlaWdodD0iNDgiIHZpZXdCb3g9IjAgMCA0OCA0OCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjQ4IiBoZWlnaHQ9IjQ4IiByeD0iMTIiIGZpbGw9IiM2MzY2ZjEiLz4KPHN2ZyB4PSIxMiIgeT0iMTIiIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIj4KPHA+PC9wPgo8L3N2Zz4KPC9zdmc+',
+        iconUrl: 'icons/icon48.png',
         title: 'PromptDex',
         message: message
       });
@@ -152,61 +135,10 @@ class SimpleBackgroundManager {
       console.error('Error showing notification:', error);
     }
   }
-  
-  async handleOpenPromptPicker() {
+
+  async saveToStorage(newPrompt) {
     try {
-      console.log('Opening prompt picker');
-      const tabs = await chrome.tabs.query({active: true, currentWindow: true});
-      const activeTab = tabs[0];
-      
-      if (this.isAITab(activeTab.url)) {
-        await chrome.tabs.sendMessage(activeTab.id, {
-          action: 'openPromptPicker'
-        });
-      } else {
-        // Show popup if not on AI tab
-        chrome.action.openPopup();
-      }
-    } catch (error) {
-      console.error('Failed to handle shortcut:', error);
-      // Fallback to popup
-      chrome.action.openPopup();
-    }
-  }
-  
-  async handleMessage(request, sender, sendResponse) {
-    try {
-      console.log('Handling message:', request.action);
-      
-      switch (request.action) {
-        case 'ping':
-          sendResponse({success: true, message: 'pong'});
-          break;
-          
-        case 'loadPrompts':
-          try {
-            const result = await chrome.storage.local.get(['localPrompts']);
-            const prompts = result.localPrompts || [];
-            sendResponse({success: true, prompts: prompts});
-          } catch (error) {
-            console.error('Failed to load prompts:', error);
-            sendResponse({success: false, error: error.message});
-          }
-          break;
-          
-        default:
-          console.log('Unknown action:', request.action);
-          sendResponse({success: false, error: 'Unknown action'});
-      }
-    } catch (error) {
-      console.error('Message handling error:', error);
-      sendResponse({success: false, error: error.message});
-    }
-  }
-  
-  async saveToLocalStorage(newPrompt) {
-    try {
-      console.log('Saving to localStorage via chrome.storage.local');
+      console.log('Saving to chrome.storage.local');
       
       // Get existing prompts
       const result = await chrome.storage.local.get(['localPrompts']);
@@ -225,25 +157,12 @@ class SimpleBackgroundManager {
       console.log('Successfully saved to chrome.storage.local');
       return true;
     } catch (error) {
-      console.error('Failed to save to localStorage:', error);
+      console.error('Failed to save to storage:', error);
       return false;
     }
   }
-
-  isAITab(url) {
-    // Load config if not available (background scripts don't have direct access)
-    if (typeof PROMPTDEX_CONFIG === 'undefined') {
-      // Fallback for background script
-      return url && (
-        url.includes('chat.openai.com') || 
-        url.includes('chatgpt.com') ||
-        url.includes('claude.ai')
-      );
-    }
-    return PROMPTDEX_CONFIG.isAIUrl(url);
-  }
 }
 
-console.log('Background script starting...');
-new SimpleBackgroundManager();
-console.log('Background script initialized');
+console.log('PromptDex background script starting...');
+new SimpleBackground();
+console.log('PromptDex background script initialized');

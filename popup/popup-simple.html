@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+    
+    body {
+      width: 420px;
+      min-height: 520px;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Inter', sans-serif;
+      font-size: 14px;
+      background: #0f0f23;
+      color: #e2e8f0;
+      overflow: hidden;
+    }
+    
+    .container {
+      padding: 20px;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid #1e293b;
+    }
+    
+    .title {
+      font-size: 18px;
+      font-weight: 700;
+      color: #f1f5f9;
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    
+    .search-box {
+      width: 100%;
+      padding: 12px 16px;
+      border: 1px solid #334155;
+      border-radius: 10px;
+      margin-bottom: 16px;
+      font-size: 14px;
+      background: #1e293b;
+      color: #e2e8f0;
+      transition: all 0.2s;
+    }
+    
+    .search-box:focus {
+      outline: none;
+      border-color: #6366f1;
+      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+    }
+    
+    .search-box::placeholder {
+      color: #64748b;
+    }
+    
+    .categories {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 16px;
+      overflow-x: auto;
+      padding-bottom: 4px;
+    }
+    
+    .categories::-webkit-scrollbar {
+      height: 2px;
+    }
+    
+    .categories::-webkit-scrollbar-track {
+      background: #1e293b;
+    }
+    
+    .categories::-webkit-scrollbar-thumb {
+      background: #475569;
+      border-radius: 2px;
+    }
+    
+    .category-tab {
+      padding: 8px 14px;
+      border: 1px solid #334155;
+      border-radius: 20px;
+      background: #1e293b;
+      cursor: pointer;
+      white-space: nowrap;
+      font-size: 12px;
+      font-weight: 600;
+      color: #94a3b8;
+      transition: all 0.2s;
+    }
+    
+    .category-tab.active {
+      background: #6366f1;
+      color: white;
+      border-color: #6366f1;
+      box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+    }
+    
+    .category-tab:hover:not(.active) {
+      background: #334155;
+      border-color: #475569;
+    }
+    
+    .content-area {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+    
+    .prompts-list {
+      flex: 1;
+      overflow-y: auto;
+      margin-bottom: 16px;
+      min-height: 280px;
+    }
+    
+    .prompts-list::-webkit-scrollbar {
+      width: 4px;
+    }
+    
+    .prompts-list::-webkit-scrollbar-track {
+      background: #1e293b;
+      border-radius: 2px;
+    }
+    
+    .prompts-list::-webkit-scrollbar-thumb {
+      background: #475569;
+      border-radius: 2px;
+    }
+    
+    .prompt-item {
+      padding: 16px;
+      border: 1px solid #334155;
+      border-radius: 12px;
+      margin-bottom: 10px;
+      cursor: pointer;
+      transition: all 0.2s;
+      background: #1e293b;
+    }
+    
+    .prompt-item:hover {
+      background: #334155;
+      border-color: #6366f1;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    }
+    
+    .prompt-title {
+      font-weight: 600;
+      margin-bottom: 6px;
+      color: #f1f5f9;
+      font-size: 15px;
+    }
+    
+    .prompt-preview {
+      font-size: 12px;
+      color: #94a3b8;
+      line-height: 1.5;
+      margin-bottom: 8px;
+    }
+    
+    .prompt-category {
+      display: inline-block;
+      background: #374151;
+      color: #d1d5db;
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    
+    .actions {
+      display: flex;
+      gap: 10px;
+      padding-top: 16px;
+      border-top: 1px solid #1e293b;
+    }
+    
+    .btn {
+      flex: 1;
+      padding: 12px 16px;
+      border: none;
+      border-radius: 10px;
+      font-weight: 600;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+    
+    .btn-primary {
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      color: white;
+      box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+    }
+    
+    .btn-primary:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 16px rgba(99, 102, 241, 0.4);
+    }
+    
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: #64748b;
+    }
+    
+    .empty-state h3 {
+      margin: 0 0 12px 0;
+      color: #94a3b8;
+      font-size: 18px;
+      font-weight: 600;
+    }
+    
+    .empty-state p {
+      margin: 0;
+      line-height: 1.5;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="title">PromptDex</div>
+    </div>
+    
+    <input type="text" id="searchBox" class="search-box" placeholder="Search prompts...">
+    
+    <div class="categories" id="categories">
+      <div class="category-tab active" data-category="all">All</div>
+    </div>
+    
+    <div class="content-area">
+      <div class="prompts-list" id="promptsList">
+        <div class="empty-state">
+          <h3>Welcome to PromptDex</h3>
+          <p>Add your first prompt to get started!</p>
+        </div>
+      </div>
+      
+      <div class="actions">
+        <button id="addPromptBtn" class="btn btn-primary">
+          ➕ Add Prompt
+        </button>
+      </div>
+    </div>
+  </div>
+  
+  <script src="popup-simple.js"></script>
+</body>
+</html>

@@ -1,7 +1,10 @@
 class ContentManager {
   constructor() {
+    console.log('PromptDex content script initializing...');
     this.platform = this.detectPlatform();
+    console.log('Detected platform:', this.platform);
     this.init();
+    console.log('PromptDex content script ready');
   }
   
   init() {
@@ -11,9 +14,16 @@ class ContentManager {
   
   detectPlatform() {
     const url = window.location.href;
-    if (url.includes('chat.openai.com')) return 'chatgpt';
-    if (url.includes('claude.ai')) return 'claude';
-    return 'unknown';
+    
+    // Fallback if config not loaded
+    if (typeof PROMPTDEX_CONFIG === 'undefined') {
+      console.warn('PROMPTDEX_CONFIG not loaded, using fallback detection');
+      if (url.includes('chat.openai.com') || url.includes('chatgpt.com')) return 'chatgpt';
+      if (url.includes('claude.ai')) return 'claude';
+      return 'unknown';
+    }
+    
+    return PROMPTDEX_CONFIG.detectPlatform(url);
   }
   
   setupMessageListener() {
@@ -90,18 +100,26 @@ class ContentManager {
   
   async handleMessage(request, sender, sendResponse) {
     try {
+      console.log('Content script received message:', request);
+      
       switch (request.action) {
+        case 'ping':
+          sendResponse({success: true, message: 'pong'});
+          break;
+          
         case 'openPromptPicker':
           await this.showPromptPicker();
           sendResponse({success: true});
           break;
           
         case 'injectPrompt':
+          console.log('Injecting prompt:', request.prompt);
           await this.injectPrompt(request.prompt);
           sendResponse({success: true});
           break;
           
         default:
+          console.log('Unknown action:', request.action);
           sendResponse({success: false, error: 'Unknown action'});
       }
     } catch (error) {

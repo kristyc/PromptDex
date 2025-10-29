@@ -39,50 +39,10 @@
       font-size: 18px;
       font-weight: 700;
       color: #f1f5f9;
-      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      background: linear-gradient(135deg, #f97316, #14b8a6);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       background-clip: text;
-    }
-    
-    .settings-btn {
-      background: none;
-      border: none;
-      color: #64748b;
-      font-size: 18px;
-      cursor: pointer;
-      padding: 4px;
-      border-radius: 4px;
-      transition: all 0.2s;
-    }
-    
-    .settings-btn:hover {
-      color: #94a3b8;
-      background: #1e293b;
-    }
-    
-    .auth-status {
-      font-size: 11px;
-      padding: 4px 10px;
-      border-radius: 12px;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
-    
-    .auth-status.connected {
-      background: #059669;
-      color: #ecfdf5;
-    }
-    
-    .auth-status.disconnected {
-      background: #dc2626;
-      color: #fef2f2;
-    }
-    
-    .auth-status.setup-needed {
-      background: #d97706;
-      color: #fef3c7;
     }
     
     .search-box {
@@ -99,8 +59,8 @@
     
     .search-box:focus {
       outline: none;
-      border-color: #6366f1;
-      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+      border-color: #14b8a6;
+      box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.1);
     }
     
     .search-box::placeholder {
@@ -142,10 +102,10 @@
     }
     
     .category-tab.active {
-      background: #6366f1;
+      background: #14b8a6;
       color: white;
-      border-color: #6366f1;
-      box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+      border-color: #14b8a6;
+      box-shadow: 0 4px 12px rgba(20, 184, 166, 0.3);
     }
     
     .category-tab:hover:not(.active) {
@@ -193,7 +153,7 @@
     
     .prompt-item:hover {
       background: #334155;
-      border-color: #6366f1;
+      border-color: #14b8a6;
       transform: translateY(-1px);
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
     }
@@ -224,6 +184,55 @@
       letter-spacing: 0.5px;
     }
     
+    .prompt-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 8px;
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+    
+    .prompt-item:hover .prompt-actions {
+      opacity: 1;
+    }
+    
+    .prompt-action-btn {
+      padding: 4px 8px;
+      border: none;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .prompt-action-btn.edit {
+      background: #ea580c;
+      color: white;
+    }
+    
+    .prompt-action-btn.edit:hover {
+      background: #dc2626;
+    }
+    
+    .prompt-action-btn.delete {
+      background: #ea580c;
+      color: white;
+    }
+    
+    .prompt-action-btn.delete:hover {
+      background: #dc2626;
+    }
+    
+    .prompt-action-btn.use {
+      background: #ea580c;
+      color: white;
+    }
+    
+    .prompt-action-btn.use:hover {
+      background: #dc2626;
+    }
+    
     .actions {
       display: flex;
       gap: 10px;
@@ -247,25 +256,15 @@
     }
     
     .btn-primary {
-      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      background: #ea580c;
       color: white;
-      box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+      box-shadow: 0 4px 12px rgba(234, 88, 12, 0.3);
     }
     
     .btn-primary:hover {
+      background: #dc2626;
       transform: translateY(-1px);
-      box-shadow: 0 6px 16px rgba(99, 102, 241, 0.4);
-    }
-    
-    .btn-secondary {
-      background: #374151;
-      color: #d1d5db;
-      border: 1px solid #4b5563;
-    }
-    
-    .btn-secondary:hover {
-      background: #4b5563;
-      transform: translateY(-1px);
+      box-shadow: 0 6px 16px rgba(234, 88, 12, 0.4);
     }
     
     .empty-state {
@@ -286,256 +285,96 @@
       line-height: 1.5;
     }
     
-    .hidden {
-      display: none !important;
-    }
-    
-    /* Settings Panel */
-    .settings-panel {
-      position: absolute;
+    /* Modal Styles */
+    .modal-overlay {
+      position: fixed;
       top: 0;
       left: 0;
       right: 0;
       bottom: 0;
-      background: #0f0f23;
-      padding: 20px;
-      z-index: 100;
-      overflow-y: auto;
-    }
-    
-    .settings-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 24px;
-      padding-bottom: 16px;
-      border-bottom: 1px solid #1e293b;
-    }
-    
-    .settings-title {
-      font-size: 18px;
-      font-weight: 700;
-      color: #f1f5f9;
-    }
-    
-    .close-btn {
-      background: none;
-      border: none;
-      color: #64748b;
-      font-size: 20px;
-      cursor: pointer;
-      padding: 4px;
-      border-radius: 4px;
-      transition: all 0.2s;
-    }
-    
-    .close-btn:hover {
-      color: #94a3b8;
-      background: #1e293b;
-    }
-    
-    /* Setup Wizard */
-    .setup-wizard {
-      margin-bottom: 30px;
-    }
-    
-    .wizard-step {
-      margin-bottom: 20px;
-      padding: 16px;
-      border: 1px solid #334155;
-      border-radius: 10px;
-      background: #1e293b;
-    }
-    
-    .wizard-step.completed {
-      border-color: #059669;
-      background: #064e3b;
-    }
-    
-    .wizard-step.active {
-      border-color: #6366f1;
-      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
-    }
-    
-    .step-header {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      margin-bottom: 12px;
-    }
-    
-    .step-number {
-      width: 28px;
-      height: 28px;
-      border-radius: 50%;
-      background: #374151;
-      color: #d1d5db;
-      display: flex;
+      background: rgba(0, 0, 0, 0.7);
+      display: none;
       align-items: center;
       justify-content: center;
-      font-weight: 600;
-      font-size: 14px;
+      z-index: 1000;
     }
     
-    .wizard-step.completed .step-number {
-      background: #059669;
-      color: white;
+    .modal {
+      background: #1e293b;
+      border-radius: 12px;
+      padding: 24px;
+      width: 90%;
+      max-width: 500px;
+      border: 1px solid #334155;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
     }
     
-    .wizard-step.active .step-number {
-      background: #6366f1;
-      color: white;
-    }
-    
-    .step-title {
-      font-weight: 600;
-      color: #f1f5f9;
-      font-size: 15px;
-    }
-    
-    .step-description {
-      color: #94a3b8;
-      font-size: 13px;
-      line-height: 1.4;
-      margin-bottom: 12px;
-    }
-    
-    .step-action {
-      display: flex;
-      gap: 10px;
-      align-items: center;
-    }
-    
-    .btn-wizard {
-      padding: 8px 16px;
-      border: none;
-      border-radius: 6px;
-      font-weight: 600;
-      font-size: 13px;
-      cursor: pointer;
-      transition: all 0.2s;
-      text-decoration: none;
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-    }
-    
-    .btn-wizard-primary {
-      background: #6366f1;
-      color: white;
-    }
-    
-    .btn-wizard-primary:hover {
-      background: #5855eb;
-    }
-    
-    .btn-wizard-secondary {
-      background: #374151;
-      color: #d1d5db;
-      border: 1px solid #4b5563;
-    }
-    
-    .btn-wizard-secondary:hover {
-      background: #4b5563;
-    }
-    
-    .form-group {
-      margin-bottom: 20px;
-    }
-    
-    .form-label {
-      display: block;
-      margin-bottom: 8px;
+    .modal-title {
+      font-size: 18px;
       font-weight: 600;
       color: #f1f5f9;
-      font-size: 13px;
+      margin: 0 0 16px 0;
     }
     
-    .form-input {
+    .modal-input {
       width: 100%;
       padding: 12px 16px;
       border: 1px solid #334155;
       border-radius: 8px;
-      background: #1e293b;
+      background: #0f0f23;
       color: #e2e8f0;
       font-size: 14px;
+      font-family: inherit;
+      margin-bottom: 16px;
       transition: all 0.2s;
     }
     
-    .form-input:focus {
+    .modal-input:focus {
       outline: none;
-      border-color: #6366f1;
-      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+      border-color: #14b8a6;
+      box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.1);
     }
     
-    .form-input::placeholder {
-      color: #64748b;
+    .modal-textarea {
+      min-height: 120px;
+      resize: vertical;
+      font-family: inherit;
+      line-height: 1.5;
     }
     
-    .form-help {
-      margin-top: 6px;
-      font-size: 12px;
-      color: #64748b;
-      line-height: 1.4;
+    .modal-buttons {
+      display: flex;
+      gap: 12px;
+      justify-content: flex-end;
     }
     
-    .setup-link {
-      color: #6366f1;
-      text-decoration: none;
+    .modal-btn {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 6px;
+      font-weight: 600;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.2s;
     }
     
-    .setup-link:hover {
-      text-decoration: underline;
+    .modal-btn-primary {
+      background: #ea580c;
+      color: white;
     }
     
-    .status-indicator {
-      display: inline-block;
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      margin-right: 8px;
-    }
-    
-    .status-connected {
-      background: #059669;
-    }
-    
-    .status-disconnected {
+    .modal-btn-primary:hover {
       background: #dc2626;
     }
     
-    .status-setup {
-      background: #d97706;
-    }
-    
-    .collapsible-content {
-      max-height: 0;
-      overflow: hidden;
-      transition: max-height 0.3s ease;
-    }
-    
-    .collapsible-content.expanded {
-      max-height: 500px;
-    }
-    
-    .copy-button {
+    .modal-btn-secondary {
       background: #374151;
-      border: 1px solid #4b5563;
       color: #d1d5db;
-      padding: 4px 8px;
-      border-radius: 4px;
-      font-size: 11px;
-      cursor: pointer;
-      margin-left: 8px;
+      border: 1px solid #4b5563;
     }
     
-    .copy-button:hover {
+    .modal-btn-secondary:hover {
       background: #4b5563;
-    }
-    
-    .success-check {
-      color: #059669;
-      font-weight: bold;
     }
   </style>
 </head>
@@ -543,13 +382,12 @@
   <div class="container">
     <div class="header">
       <div class="title">PromptDex</div>
-      <div style="display: flex; align-items: center; gap: 12px;">
-        <div id="authStatus" class="auth-status setup-needed">
-          <span class="status-indicator status-setup"></span>
-          Setup Needed
-        </div>
-        <button id="settingsBtn" class="settings-btn">⚙️</button>
-      </div>
+      <img src="../icons/icon48.png" alt="PromptDex" style="width: 24px; height: 24px; opacity: 0.8;">
+    </div>
+    
+    <div style="padding: 0 0 16px 0; font-size: 11px; color: #e2e8f0; text-align: center; border-bottom: 1px solid #1e293b; margin-bottom: 16px;">
+      <div style="margin-bottom: 4px; font-weight: 600; color: #f97316;">On ChatGPT/Claude: Press Ctrl+Shift+P</div>
+      <div style="color: #e2e8f0;">Right-click selected text to save as prompt</div>
     </div>
     
     <input type="text" id="searchBox" class="search-box" placeholder="Search prompts...">
@@ -562,7 +400,7 @@
       <div class="prompts-list" id="promptsList">
         <div class="empty-state">
           <h3>Welcome to PromptDex</h3>
-          <p>Click the ⚙️ settings button to set up your Google Drive integration, then add your first prompt!</p>
+          <p>Add your first prompt to get started!</p>
         </div>
       </div>
       
@@ -570,124 +408,60 @@
         <button id="addPromptBtn" class="btn btn-primary">
           ➕ Add Prompt
         </button>
-        <button id="connectBtn" class="btn btn-secondary">
-          🔗 Connect Drive
-        </button>
       </div>
     </div>
   </div>
   
-  <!-- Settings Panel -->
-  <div id="settingsPanel" class="settings-panel hidden">
-    <div class="settings-header">
-      <div class="settings-title">Setup & Settings</div>
-      <button id="closeSettingsBtn" class="close-btn">&times;</button>
-    </div>
-    
-    <!-- Setup Wizard -->
-    <div class="setup-wizard">
-      <!-- Step 1: Create Project -->
-      <div class="wizard-step" id="step1">
-        <div class="step-header">
-          <div class="step-number">1</div>
-          <div class="step-title">Create Google Project</div>
-        </div>
-        <div class="step-description">
-          First, you'll need to create a Google Cloud project (it's free!). This only takes a minute.
-        </div>
-        <div class="step-action">
-          <a href="https://console.cloud.google.com/projectcreate" target="_blank" class="btn-wizard btn-wizard-primary">
-            🚀 Create Project
-          </a>
-          <button id="step1Done" class="btn-wizard btn-wizard-secondary">
-            ✓ I've created a project
-          </button>
-        </div>
+  <!-- Add/Edit Prompt Modal -->
+  <div class="modal-overlay" id="addPromptModal">
+    <div class="modal">
+      <h3 class="modal-title" id="modalTitle">Add New Prompt</h3>
+      <div style="margin-bottom: 12px; padding: 10px; background: #0f0f23; border: 1px solid #334155; border-radius: 6px; font-size: 12px; color: #94a3b8; line-height: 1.4;">
+        💡 <strong style="color: #f97316;">Tip:</strong> Add variables like {{topic}}, {{tone}}, {{audience}} and the LLM will ask you for the values when you run the prompt.
       </div>
-      
-      <!-- Step 2: Enable API -->
-      <div class="wizard-step" id="step2">
-        <div class="step-header">
-          <div class="step-number">2</div>
-          <div class="step-title">Enable Google Drive API</div>
-        </div>
-        <div class="step-description">
-          Enable the Google Drive API for your project so the extension can save your prompts.
-        </div>
-        <div class="step-action">
-          <a href="https://console.cloud.google.com/apis/library/drive.googleapis.com" target="_blank" class="btn-wizard btn-wizard-primary">
-            🔧 Enable API
-          </a>
-          <button id="step2Done" class="btn-wizard btn-wizard-secondary">
-            ✓ API is enabled
-          </button>
-        </div>
+      <textarea id="promptContent" class="modal-input modal-textarea" placeholder="Enter prompt content...
+
+Example with variables:
+Write a {{type}} about {{topic}} in {{tone}} tone for {{audience}}."></textarea>
+      <input type="text" id="promptTitle" class="modal-input" placeholder="Enter prompt title...">
+      <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 16px;">
+        <select id="promptCategory" class="modal-input" style="margin-bottom: 0; flex: 1;">
+          <option value="general">General</option>
+          <option value="writing">Writing</option>
+          <option value="coding">Coding</option>
+          <option value="analysis">Analysis</option>
+          <option value="communication">Communication</option>
+          <option value="creative">Creative</option>
+          <option value="business">Business</option>
+          <option value="education">Education</option>
+        </select>
+        <button class="modal-btn modal-btn-secondary" id="editCategories" style="white-space: nowrap; padding: 8px;">✏️</button>
       </div>
-      
-      <!-- Step 3: Create Credentials -->
-      <div class="wizard-step" id="step3">
-        <div class="step-header">
-          <div class="step-number">3</div>
-          <div class="step-title">Create OAuth Credentials</div>
-        </div>
-        <div class="step-description">
-          Create OAuth credentials so the extension can securely connect to your Google Drive.
-        </div>
-        <div class="collapsible-content" id="step3Details">
-          <div style="background: #374151; padding: 12px; border-radius: 6px; margin: 10px 0; font-size: 12px;">
-            <strong>Quick Setup:</strong><br>
-            1. Choose "Web application"<br>
-            2. Add this redirect URI: <code style="background: #1e293b; padding: 2px 4px; border-radius: 3px;">https://*.chromiumapp.org/*</code>
-            <button class="copy-button" onclick="navigator.clipboard.writeText('https://*.chromiumapp.org/*')">Copy</button><br>
-            3. Copy the Client ID (starts with numbers, ends with .apps.googleusercontent.com)
-          </div>
-        </div>
-        <div class="step-action">
-          <a href="https://console.cloud.google.com/apis/credentials/oauthclient" target="_blank" class="btn-wizard btn-wizard-primary">
-            🔑 Create Credentials
-          </a>
-          <button id="toggleStep3Details" class="btn-wizard btn-wizard-secondary">
-            📋 Show Details
-          </button>
-        </div>
-      </div>
-      
-      <!-- Step 4: Enter Client ID -->
-      <div class="wizard-step" id="step4">
-        <div class="step-header">
-          <div class="step-number">4</div>
-          <div class="step-title">Enter Your Client ID</div>
-        </div>
-        <div class="step-description">
-          Paste the Client ID from Google Cloud Console here. It should look like: 123456789-abc...xyz.apps.googleusercontent.com
-        </div>
-        <div class="form-group">
-          <input type="text" id="clientIdInput" class="form-input" placeholder="123456789-abcdefghijk.apps.googleusercontent.com">
-        </div>
-        <div class="step-action">
-          <button id="saveClientId" class="btn-wizard btn-wizard-primary">
-            💾 Save Client ID
-          </button>
-          <button id="testConnection" class="btn-wizard btn-wizard-secondary">
-            🔧 Test Connection
-          </button>
-        </div>
-      </div>
-    </div>
-    
-    <!-- Additional Settings -->
-    <div class="form-group">
-      <label class="form-label">Storage Location</label>
-      <select id="storageSelect" class="form-input">
-        <option value="gdrive">Google Drive (Recommended)</option>
-        <option value="local" disabled>Local Storage (Coming Soon)</option>
-      </select>
-      <div class="form-help">
-        Your prompts will be stored securely in your Google Drive app data folder.
+      <div class="modal-buttons">
+        <button class="modal-btn modal-btn-secondary" id="cancelPrompt">Cancel</button>
+        <button class="modal-btn modal-btn-primary" id="savePrompt">Save Prompt</button>
       </div>
     </div>
   </div>
   
+  <!-- Category Management Modal -->
+  <div class="modal-overlay" id="categoryModal">
+    <div class="modal">
+      <h3 class="modal-title">Manage Categories</h3>
+      <div style="margin-bottom: 16px;">
+        <input type="text" id="newCategoryName" class="modal-input" placeholder="Enter new category name..." style="margin-bottom: 8px;">
+        <button class="modal-btn modal-btn-primary" id="addCategory" style="width: 100%;">Add Category</button>
+      </div>
+      <div style="margin-bottom: 16px; max-height: 200px; overflow-y: auto;" id="categoryList">
+        <!-- Categories will be populated here -->
+      </div>
+      <div class="modal-buttons">
+        <button class="modal-btn modal-btn-secondary" id="closeCategoryModal">Close</button>
+      </div>
+    </div>
+  </div>
+  
+  <script src="../lib/config.js"></script>
   <script src="popup.js"></script>
 </body>
 </html>

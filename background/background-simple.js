@@ -183,17 +183,6 @@ class SimpleBackgroundManager {
           sendResponse({success: true, message: 'pong'});
           break;
           
-        case 'loadPrompts':
-          try {
-            const result = await chrome.storage.local.get(['localPrompts']);
-            const prompts = result.localPrompts || [];
-            sendResponse({success: true, prompts: prompts});
-          } catch (error) {
-            console.error('Failed to load prompts:', error);
-            sendResponse({success: false, error: error.message});
-          }
-          break;
-          
         default:
           console.log('Unknown action:', request.action);
           sendResponse({success: false, error: 'Unknown action'});
@@ -231,16 +220,10 @@ class SimpleBackgroundManager {
   }
 
   isAITab(url) {
-    // Load config if not available (background scripts don't have direct access)
-    if (typeof PROMPTDEX_CONFIG === 'undefined') {
-      // Fallback for background script
-      return url && (
-        url.includes('chat.openai.com') || 
-        url.includes('chatgpt.com') ||
-        url.includes('claude.ai')
-      );
-    }
-    return PROMPTDEX_CONFIG.isAIUrl(url);
+    return url && (
+      url.includes('chat.openai.com') || 
+      url.includes('claude.ai')
+    );
   }
 }
 
