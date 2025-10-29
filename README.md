@@ -4,21 +4,21 @@ Your personal prompt library - save, organize, and deploy AI prompts instantly.
 
 ## Features
 
-- 🔗 **Google Drive sync** - Store prompts securely in your Google Drive
-- 🏷️ **Auto-categorization** - Automatically categorize prompts by content
+- 💾 **Local storage** - Fast, reliable prompt storage with JSON backup/restore
+- 🗂️ **Custom categories** - Create and manage your own organization system
 - 🔤 **Variable support** - Use `{{variable}}` syntax for dynamic prompts
-- ⌨️ **Keyboard shortcuts** - Press `Ctrl+Shift+P` on AI platforms
+- ⌨️ **Floating picker** - Press `Ctrl+Shift+P` on AI platforms for instant access
 - 🎯 **Smart injection** - AI asks for variables naturally during execution
 - 📱 **Cross-platform** - Works on ChatGPT and Claude
 - 🖱️ **Right-click save** - Highlight text anywhere and save as prompt
-- 🧙‍♂️ **Setup wizard** - Non-techie friendly guided setup
+- 📤 **Backup & restore** - Export/import your prompts as JSON files
 
 ## Quick Start
 
 1. **Install Extension** - Load in Chrome developer mode
-2. **Follow Setup Wizard** - Click ⚙️ and follow 4 simple steps
-3. **Start Saving Prompts** - Right-click selected text or use "Add Prompt"
-4. **Use on AI Sites** - Press `Ctrl+Shift+P` on ChatGPT/Claude
+2. **Start Saving Prompts** - Right-click selected text or use "Add Prompt"
+3. **Use on AI Sites** - Press `Ctrl+Shift+P` on ChatGPT/Claude
+4. **Backup Regularly** - Use Settings → Export to save your prompts
 
 ## Setup Instructions
 
@@ -28,27 +28,22 @@ Your personal prompt library - save, organize, and deploy AI prompts instantly.
 3. Enable "Developer mode"
 4. Click "Load unpacked" and select the `promptdex` folder
 
-### 2. Complete Setup Wizard
-The extension includes a guided setup wizard that takes you through:
-
-1. **Create Google Project** - Direct link to Google Cloud Console
-2. **Enable Drive API** - One-click enable for your project  
-3. **Create OAuth Credentials** - Step-by-step credential creation
-4. **Enter Client ID** - Paste and test your credentials
-
-Each step includes direct links to the exact pages you need!
-
-### 3. Start Using PromptDex
+### 2. Start Using PromptDex
 
 **Save Prompts:**
 - Right-click any selected text → "Save to PromptDex"
 - Click "Add Prompt" in the extension popup
-- Both methods auto-categorize and sync to Google Drive
+- Assign custom categories and use variables like `{{topic}}`
 
 **Use Prompts:**
 - On ChatGPT or Claude, press `Ctrl+Shift+P`
-- Select your prompt from the dark-themed picker
+- Select your prompt from the floating dark-themed picker
 - AI will naturally ask for any `{{variables}}` needed
+
+**Manage & Backup:**
+- Click ⚙️ Settings to export/import your prompt library
+- Edit categories with the ✏️ icon beside the dropdown
+- Search and filter prompts by category
 
 ## Example Prompts
 
@@ -75,31 +70,30 @@ Format it professionally for {{stakeholder_type}}.
 - Professional status indicators
 - Clean, intuitive interface
 
-### 🧙‍♂️ Non-Techie Friendly
-- Step-by-step setup wizard with direct links
-- Copy buttons for complex URLs
-- Progress tracking with visual indicators
-- Helpful tooltips and guidance
+### ⚙️ Easy Management
+- Intuitive category management with visual editor
+- Custom categories with add/edit/delete functionality
+- Smart orphan handling when categories are deleted
+- One-click backup and restore via JSON files
 
 ### 🖱️ Right-Click Integration
 - Highlight any text on any webpage
 - Right-click → "Save to PromptDex"
 - Auto-generates smart titles
-- Auto-categorizes content
+- Manual category assignment
 - Instant desktop notifications
 
 ### 🚀 Smart Prompt Injection
-- Natural variable handling
+- Natural variable handling via floating picker
 - AI asks for variables conversationally
 - Works seamlessly on ChatGPT and Claude
-- Keyboard shortcut for quick access
+- Embedded directly in AI pages for reliability
 
-### 📁 Auto-Organization
-- **Writing**: Blog posts, articles, emails
-- **Coding**: Debug, functions, code review  
-- **Analysis**: Data analysis, research
-- **Communication**: Messages, letters
-- **General**: Everything else
+### 📁 Flexible Organization
+- **Custom Categories**: Create unlimited categories to fit your workflow
+- **Built-in Categories**: Writing, Coding, Analysis, Communication, Creative, Business, Education
+- **Category Management**: Full CRUD operations with visual editor
+- **Smart Migration**: Deleted categories move prompts to "uncategorised"
 
 ## File Structure
 
@@ -107,30 +101,33 @@ Format it professionally for {{stakeholder_type}}.
 promptdex/
 ├── manifest.json           # Extension manifest
 ├── popup/
-│   ├── popup.html          # Main interface
-│   └── popup.js            # UI logic & setup wizard
+│   ├── popup.html          # Main interface with settings
+│   └── popup.js            # UI logic & category management
 ├── background/
-│   └── background.js       # Service worker & context menus
+│   └── simple-background.js # Context menus only
 ├── content/
-│   └── content.js          # ChatGPT/Claude integration
+│   └── embedded-promptdex.js # Floating picker integration
+├── lib/
+│   └── config.js           # Shared platform configuration
+├── icons/                  # Extension icons
 └── README.md               # This file
 ```
 
 ## Privacy & Security
 
-- **Your data stays yours**: Prompts stored in your personal Google Drive
-- **App data folder**: Hidden from normal Drive browsing
-- **No third-party servers**: Direct Google Drive integration
-- **Open source**: Full code transparency
+- **Local storage**: All data stored locally in browser extension storage
+- **No cloud dependencies**: Zero external services or APIs required
+- **JSON backups**: Export/import your data anytime for portability
+- **Open source**: Full code transparency and audit-friendly
 
 ## Development
 
 The extension uses:
 - **Manifest V3** for modern Chrome compatibility
-- **Chrome Identity API** for secure Google authentication
-- **Google Drive API** for cloud storage
-- **Content scripts** for seamless AI platform integration
+- **Chrome Storage API** for reliable local persistence
+- **Direct page embedding** for robust AI platform integration
 - **Context menus** for right-click functionality
+- **JSON export/import** for data portability
 
 ## Contributing
 

@@ -382,7 +382,10 @@
   <div class="container">
     <div class="header">
       <div class="title">PromptDex</div>
-      <img src="../icons/icon48.png" alt="PromptDex" style="width: 24px; height: 24px; opacity: 0.8;">
+      <div style="display: flex; gap: 8px; align-items: center;">
+        <button id="settingsBtn" style="background: none; border: none; color: #94a3b8; cursor: pointer; font-size: 16px; padding: 4px;" title="Settings">⚙️</button>
+        <img src="../icons/icon48.png" alt="PromptDex" style="width: 24px; height: 24px; opacity: 0.8;">
+      </div>
     </div>
     
     <div style="padding: 0 0 16px 0; font-size: 11px; color: #e2e8f0; text-align: center; border-bottom: 1px solid #1e293b; margin-bottom: 16px;">
@@ -457,6 +460,52 @@ Write a {{type}} about {{topic}} in {{tone}} tone for {{audience}}."></textarea>
       </div>
       <div class="modal-buttons">
         <button class="modal-btn modal-btn-secondary" id="closeCategoryModal">Close</button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Settings Modal -->
+  <div class="modal-overlay" id="settingsModal">
+    <div class="modal">
+      <h3 class="modal-title">Settings</h3>
+      
+      <div style="margin-bottom: 20px;">
+        <h4 style="margin: 0 0 12px 0; color: #f1f5f9; font-size: 14px;">Backup & Restore</h4>
+        
+        <div style="margin-bottom: 12px;">
+          <button class="modal-btn modal-btn-primary" id="exportData" style="width: 100%; margin-bottom: 8px;">
+            📤 Export Prompts & Categories
+          </button>
+          <p style="margin: 0; font-size: 11px; color: #94a3b8;">Download your prompts and categories as JSON backup file</p>
+        </div>
+        
+        <div style="margin-bottom: 12px;">
+          <input type="file" id="importFile" accept=".json" style="display: none;">
+          <button class="modal-btn modal-btn-secondary" id="importData" style="width: 100%; margin-bottom: 8px;">
+            📥 Import Backup
+          </button>
+          <p style="margin: 0; font-size: 11px; color: #94a3b8;">Restore prompts and categories from JSON backup file</p>
+        </div>
+        
+        <div style="border-top: 1px solid #334155; padding-top: 12px;">
+          <div style="background: #0f0f23; border: 1px solid #334155; border-radius: 6px; padding: 10px;">
+            <p style="margin: 0; font-size: 11px; color: #94a3b8; line-height: 1.4;">
+              💡 <strong style="color: #f97316;">Tip:</strong> Regular backups ensure you never lose your prompts. Export before making major changes.
+            </p>
+          </div>
+        </div>
+      </div>
+      
+      <div style="margin-bottom: 16px;">
+        <h4 style="margin: 0 0 8px 0; color: #f1f5f9; font-size: 14px;">About</h4>
+        <p style="margin: 0; font-size: 12px; color: #94a3b8; line-height: 1.4;">
+          PromptDex v1.1 - Your personal AI prompt library<br>
+          <span style="font-size: 10px; color: #64748b;">Built with Claude Code</span>
+        </p>
+      </div>
+      
+      <div class="modal-buttons">
+        <button class="modal-btn modal-btn-secondary" id="closeSettings">Close</button>
       </div>
     </div>
   </div>

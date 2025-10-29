@@ -30,6 +30,7 @@ class SimplePopupManager {
   setupEventListeners() {
     document.getElementById('addPromptBtn').addEventListener('click', () => this.showAddPromptModal());
     document.getElementById('searchBox').addEventListener('input', (e) => this.handleSearch(e.target.value));
+    document.getElementById('settingsBtn').addEventListener('click', () => this.showSettingsModal());
     
     // Modal events
     document.getElementById('savePrompt').addEventListener('click', () => this.handleSavePrompt());
@@ -39,6 +40,12 @@ class SimplePopupManager {
     // Category modal events
     document.getElementById('addCategory').addEventListener('click', () => this.addCategory());
     document.getElementById('closeCategoryModal').addEventListener('click', () => this.hideCategoryModal());
+    
+    // Settings modal events
+    document.getElementById('exportData').addEventListener('click', () => this.exportData());
+    document.getElementById('importData').addEventListener('click', () => document.getElementById('importFile').click());
+    document.getElementById('importFile').addEventListener('change', (e) => this.importData(e));
+    document.getElementById('closeSettings').addEventListener('click', () => this.hideSettingsModal());
     
     // Auto-predict title when content changes
     document.getElementById('promptContent').addEventListener('input', () => {
@@ -57,6 +64,12 @@ class SimplePopupManager {
     document.getElementById('categoryModal').addEventListener('click', (e) => {
       if (e.target.id === 'categoryModal') {
         this.hideCategoryModal();
+      }
+    });
+    
+    document.getElementById('settingsModal').addEventListener('click', (e) => {
+      if (e.target.id === 'settingsModal') {
+        this.hideSettingsModal();
       }
     });
     
@@ -651,6 +664,119 @@ class SimplePopupManager {
     categorySelect.innerHTML = this.categories.map(category => 
       `<option value="${category}">${category.charAt(0).toUpperCase() + category.slice(1)}</option>`
     ).join('');
+  }
+
+  // Settings Modal Methods
+  showSettingsModal() {
+    document.getElementById('settingsModal').style.display = 'flex';
+  }
+
+  hideSettingsModal() {
+    document.getElementById('settingsModal').style.display = 'none';
+  }
+
+  async exportData() {
+    try {
+      const data = {
+        prompts: this.prompts,
+        categories: this.categories,
+        exportDate: new Date().toISOString(),
+        version: '1.1'
+      };
+
+      const dataStr = JSON.stringify(data, null, 2);
+      const blob = new Blob([dataStr], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+      const filename = `promptdex-backup-${timestamp}.json`;
+
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      this.showNotification(`Backup exported: ${this.prompts.length} prompts, ${this.categories.length} categories`, 'success');
+    } catch (error) {
+      console.error('Export failed:', error);
+      this.showNotification('Failed to export data', 'error');
+    }
+  }
+
+  async importData(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+
+      // Validate the data structure
+      if (!this.validateImportData(data)) {
+        this.showNotification('Invalid backup file format', 'error');
+        return;
+      }
+
+      // Ask for confirmation
+      const promptCount = data.prompts ? data.prompts.length : 0;
+      const categoryCount = data.categories ? data.categories.length : 0;
+      
+      if (!confirm(`Import ${promptCount} prompts and ${categoryCount} categories? This will replace your current data.`)) {
+        return;
+      }
+
+      // Import the data
+      if (data.prompts) {
+        this.prompts = data.prompts;
+        await this.savePrompts();
+      }
+
+      if (data.categories) {
+        this.categories = data.categories;
+        await this.saveCategories();
+      }
+
+      // Refresh the UI
+      this.renderCategories();
+      this.renderPrompts();
+      this.populateCategoryDropdown();
+
+      this.showNotification(`Successfully imported ${promptCount} prompts and ${categoryCount} categories!`, 'success');
+      this.hideSettingsModal();
+
+    } catch (error) {
+      console.error('Import failed:', error);
+      this.showNotification('Failed to import data. Please check the file format.', 'error');
+    }
+
+    // Clear the file input
+    event.target.value = '';
+  }
+
+  validateImportData(data) {
+    // Check if data has the required structure
+    if (!data || typeof data !== 'object') {
+      return false;
+    }
+
+    // Check prompts array
+    if (data.prompts && Array.isArray(data.prompts)) {
+      for (const prompt of data.prompts) {
+        if (!prompt.id || !prompt.title || !prompt.content || !prompt.category) {
+          return false;
+        }
+      }
+    }
+
+    // Check categories array
+    if (data.categories && !Array.isArray(data.categories)) {
+      return false;
+    }
+
+    return true;
   }
 }
 
