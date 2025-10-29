@@ -43,34 +43,34 @@ class SimpleBackground {
 
   async handleSaveSelectedText(selectedText, tab) {
     try {
-      console.log('Saving selected text:', selectedText);
+      console.log('Preparing selected text for prompt creation:', selectedText);
       
-      // Generate a title from the selected text
-      const title = this.generateTitleFromText(selectedText);
+      // Convert old variable formats automatically
+      const convertedContent = this.convertVariableFormats(selectedText.trim());
       
-      const newPrompt = {
-        id: Date.now().toString(),
-        title: title,
-        content: selectedText.trim(),
-        category: this.categorizePrompt(selectedText),
-        createdAt: new Date().toISOString(),
-        source: `Saved from ${tab.url}`
+      // Generate auto-filled values
+      const suggestedTitle = this.generateTitleFromText(convertedContent);
+      const suggestedCategory = this.categorizePrompt(convertedContent);
+      
+      // Store the data for the popup to use
+      const promptData = {
+        content: convertedContent,
+        title: suggestedTitle,
+        category: suggestedCategory,
+        fromRightClick: true
       };
       
-      console.log('Created prompt:', newPrompt);
+      // Store in chrome.storage so popup can access it
+      await chrome.storage.local.set({pendingRightClickPrompt: promptData});
       
-      const success = await this.saveToStorage(newPrompt);
+      // Open the extension popup by creating a new tab with the popup URL
+      // This will trigger the popup to open and detect the pending right-click data
+      chrome.action.openPopup();
       
-      if (success) {
-        this.showNotification('Text saved as prompt!', 'success');
-        console.log('Successfully saved prompt');
-      } else {
-        this.showNotification('Failed to save prompt', 'error');
-        console.error('Failed to save prompt');
-      }
+      console.log('Prepared right-click prompt data for popup');
     } catch (error) {
-      console.error('Failed to save selected text:', error);
-      this.showNotification('Failed to save prompt', 'error');
+      console.error('Failed to prepare selected text:', error);
+      this.showNotification('Failed to prepare prompt', 'error');
     }
   }
 
@@ -83,6 +83,9 @@ class SimpleBackground {
       // Remove common prompt starters
       title = title.replace(/^(please|can you|could you|help me|i need|i want)/i, '');
       title = title.trim();
+      
+      // Replace variables with [variable] for cleaner titles
+      title = title.replace(/{[^}]+}/g, '[variable]');
       
       // Capitalize first letter
       title = title.charAt(0).toUpperCase() + title.slice(1);
@@ -159,6 +162,58 @@ class SimpleBackground {
     } catch (error) {
       console.error('Failed to save to storage:', error);
       return false;
+    }
+  }
+
+  convertVariableFormats(content) {
+    try {
+      // Check for old variable formats and convert automatically
+      let convertedContent = content;
+      let hasConversions = false;
+      
+      // Convert {{variable}} to {variable}
+      if (/\{\{[^}]+\}\}/.test(convertedContent)) {
+        convertedContent = convertedContent.replace(/\{\{([^}]+)\}\}/g, '{$1}');
+        hasConversions = true;
+      }
+      
+      // Convert var[variable] to {variable}
+      if (/var\[[^\]]+\]/gi.test(convertedContent)) {
+        convertedContent = convertedContent.replace(/var\[([^\]]+)\]/gi, '{$1}');
+        hasConversions = true;
+      }
+      
+      // Convert <variable> to {variable}
+      if (/<[^>]+>/.test(convertedContent)) {
+        convertedContent = convertedContent.replace(/<([^>]+)>/g, '{$1}');
+        hasConversions = true;
+      }
+      
+      // Convert [variable] to {variable} only if it contains a single value
+      if (/\[[^\]]+\]/.test(convertedContent)) {
+        convertedContent = convertedContent.replace(/\[([^\]]+)\]/g, (match, content) => {
+          // Check if content contains multiple values (comma, slash, pipe, or)
+          const hasMultipleValues = /[,\/\|]|(\s+or\s+)|(\s+and\s+)/.test(content.trim());
+          
+          if (!hasMultipleValues && /^[a-zA-Z_][a-zA-Z0-9_\s]*$/.test(content.trim())) {
+            // Single variable - convert to {variable}
+            hasConversions = true;
+            return `{${content.trim()}}`;
+          } else {
+            // Multiple values or complex content - leave as [options]
+            return match;
+          }
+        });
+      }
+      
+      if (hasConversions) {
+        console.log('Converted variable formats in right-click saved text');
+      }
+      
+      return convertedContent;
+    } catch (error) {
+      console.error('Error converting variable formats:', error);
+      return content;
     }
   }
 }

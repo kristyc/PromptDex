@@ -55,7 +55,8 @@
   "web_accessible_resources": [
     {
       "resources": [
-        "lib/*"
+        "lib/*",
+        "fullview/*"
       ],
       "matches": [
         "https://chat.openai.com/*",

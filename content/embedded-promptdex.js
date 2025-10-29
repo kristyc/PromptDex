@@ -6,6 +6,7 @@ class EmbeddedPromptDex {
     this.prompts = [];
     this.isVisible = false;
     this.platform = this.detectPlatform();
+    this.currentShortcut = 'Ctrl+Shift+P';
     
     console.log('🚀 PromptDex embedded script starting...');
     console.log('📍 Current URL:', window.location.href);
@@ -20,6 +21,9 @@ class EmbeddedPromptDex {
     await this.loadPrompts();
     console.log('📚 Loaded', this.prompts.length, 'prompts');
     
+    await this.loadShortcut();
+    console.log('⌨️ Loaded shortcut:', this.currentShortcut);
+    
     this.createFloatingPicker();
     console.log('🎨 Created floating picker');
     
@@ -29,7 +33,7 @@ class EmbeddedPromptDex {
     this.setupContextMenu();
     console.log('🖱️ Set up context menu');
     
-    console.log('✅ PromptDex ready! Press Ctrl+Shift+P to open');
+    console.log(`✅ PromptDex ready! Press ${this.currentShortcut} to open`);
   }
 
   detectPlatform() {
@@ -46,6 +50,17 @@ class EmbeddedPromptDex {
     } catch (error) {
       console.error('Failed to load prompts:', error);
       this.prompts = [];
+    }
+  }
+
+  async loadShortcut() {
+    try {
+      const result = await chrome.storage.local.get(['customShortcut']);
+      if (result.customShortcut) {
+        this.currentShortcut = result.customShortcut;
+      }
+    } catch (error) {
+      console.error('Failed to load shortcut:', error);
     }
   }
 
@@ -116,8 +131,8 @@ class EmbeddedPromptDex {
         max-height: 350px;
       "></div>
       
-      <div style="padding: 12px; border-top: 1px solid #334155; font-size: 11px; color: #64748b; text-align: center;">
-        Press Ctrl+Shift+P to toggle • Right-click to save text
+      <div style="padding: 12px; border-top: 1px solid #334155; font-size: 11px; color: #ffffff; text-align: center;">
+        Press ${this.currentShortcut} to toggle • Right-click to save text
       </div>
     `;
 
@@ -142,9 +157,9 @@ class EmbeddedPromptDex {
       this.renderPrompts(e.target.value);
     });
 
-    // Click outside to close
+    // Click outside to close (but not when editing)
     document.addEventListener('click', (e) => {
-      if (this.isVisible && !this.container.contains(e.target)) {
+      if (this.isVisible && !this.container.contains(e.target) && !this.container.querySelector('#promptdex-edit-form')) {
         this.hidePicker();
       }
     });
@@ -157,8 +172,8 @@ class EmbeddedPromptDex {
 
   setupKeyboardShortcuts() {
     document.addEventListener('keydown', (e) => {
-      // Ctrl+Shift+P to toggle picker
-      if (e.ctrlKey && e.shiftKey && e.key === 'P') {
+      // Check for custom shortcut
+      if (this.matchesShortcut(e)) {
         e.preventDefault();
         this.togglePicker();
       }
@@ -168,6 +183,27 @@ class EmbeddedPromptDex {
         this.hidePicker();
       }
     });
+  }
+
+  matchesShortcut(e) {
+    const parts = this.currentShortcut.split('+');
+    const requiredKeys = parts.map(p => p.toLowerCase());
+    
+    const pressedKeys = [];
+    if (e.ctrlKey) pressedKeys.push('ctrl');
+    if (e.altKey) pressedKeys.push('alt');
+    if (e.shiftKey) pressedKeys.push('shift');
+    if (e.metaKey) pressedKeys.push('meta');
+    
+    const mainKey = e.key.toLowerCase();
+    
+    // Only add main key if it's not a modifier
+    if (!['control', 'alt', 'shift', 'meta'].includes(mainKey)) {
+      pressedKeys.push(mainKey);
+    }
+    
+    return requiredKeys.every(key => pressedKeys.includes(key)) && 
+           pressedKeys.length === requiredKeys.length;
   }
 
   setupContextMenu() {
@@ -311,19 +347,31 @@ class EmbeddedPromptDex {
       return false;
     }
 
-    const hasVariables = /\{\{[^}]+\}\}/.test(prompt.content);
+    const hasVariables = /\{[^}]+\}/.test(prompt.content);
+    const hasMultipleChoice = /\[[^\]]+\]/.test(prompt.content);
     let finalPrompt = prompt.content;
 
-    if (hasVariables) {
-      // Extract all unique variables from the prompt
-      const variables = [...new Set(prompt.content.match(/\{\{([^}]+)\}\}/g))];
-      const variableList = variables.map(v => v.replace(/[{}]/g, '')).join(', ');
+    if (hasVariables || hasMultipleChoice) {
+      // Extract variables and multiple choice options
+      const variables = prompt.content.match(/\{([^}]+)\}/g) || [];
+      const multipleChoiceOptions = prompt.content.match(/\[[^\]]+\]/g) || [];
       
-      finalPrompt = `I'd like you to help me with this prompt. As you work through it, please ask me for the values of these variables one by one: ${variableList}
-
-Please ask for each variable value before proceeding with the prompt:
+      let instructions = "I'd like you to help me with this prompt. ";
+      
+      if (variables.length > 0) {
+        const variableList = variables.map(v => v.replace(/[{}]/g, '')).join(', ');
+        instructions += `Please ask me for the values of these variables: ${variableList}. `;
+      }
+      
+      if (multipleChoiceOptions.length > 0) {
+        instructions += `For options in brackets [like this], present them as numbered multiple choice where I can respond with just the number (1, 2, 3, etc.). `;
+      }
+      
+      instructions += `Ask for each value before proceeding with the prompt:
 
 ${prompt.content}`;
+      
+      finalPrompt = instructions;
     }
 
     return await this.insertText(textInput, finalPrompt);
@@ -380,39 +428,14 @@ ${prompt.content}`;
   }
 
   showAddPromptDialog() {
-    const content = prompt('Enter prompt content:');
-    if (!content || !content.trim()) return;
-
-    const title = prompt('Enter prompt title:') || this.generateTitle(content);
-    const category = prompt('Enter category (general, writing, coding, analysis, communication, creative, business, education):') || 'general';
-    
-    this.addPrompt(title.trim(), content.trim(), category.trim());
+    this.showEditDialog(null);
   }
 
   editPrompt(promptId) {
     const prompt = this.prompts.find(p => p.id === promptId);
     if (!prompt) return;
-
-    const newContent = prompt('Edit prompt content:', prompt.content);
-    if (newContent === null) return;
-
-    const newTitle = prompt('Edit prompt title:', prompt.title);
-    if (newTitle === null) return;
-
-    const newCategory = prompt('Edit category (general, writing, coding, analysis, communication, creative, business, education):', prompt.category) || prompt.category;
-
-    const promptIndex = this.prompts.findIndex(p => p.id === promptId);
-    this.prompts[promptIndex] = {
-      ...prompt,
-      title: newTitle.trim(),
-      content: newContent.trim(),
-      category: newCategory.trim(),
-      updatedAt: new Date().toISOString()
-    };
-
-    this.savePrompts();
-    this.renderPrompts();
-    this.showNotification('Prompt updated!', 'success');
+    
+    this.showEditDialog(prompt);
   }
 
   async deletePrompt(promptId) {
@@ -492,11 +515,173 @@ ${prompt.content}`;
   }
 
   hasVariables(content) {
-    return /\{\{[^}]+\}\}/.test(content);
+    return /\{[^}]+\}/.test(content) || /\[[^\]]+\]/.test(content);
   }
 
   truncate(text, length) {
     return text.length > length ? text.substring(0, length) + '...' : text;
+  }
+
+  showEditDialog(prompt = null) {
+    // Hide the main picker content
+    const promptsList = this.container.querySelector('#promptdex-prompts-list');
+    const searchBox = this.container.querySelector('#promptdex-search');
+    promptsList.style.display = 'none';
+    searchBox.style.display = 'none';
+
+    // Create edit form
+    const editForm = document.createElement('div');
+    editForm.id = 'promptdex-edit-form';
+    editForm.style.cssText = `
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      height: 350px;
+    `;
+
+    const isEditing = prompt !== null;
+    const title = isEditing ? prompt.title : '';
+    const content = isEditing ? prompt.content : '';
+    const category = isEditing ? prompt.category : 'general';
+
+    editForm.innerHTML = `
+      <h4 style="margin: 0; color: #f1f5f9; font-size: 14px;">${isEditing ? 'Edit Prompt' : 'Add New Prompt'}</h4>
+      
+      <textarea id="edit-content" placeholder="Enter prompt content..." style="
+        flex: 1;
+        padding: 8px;
+        border: 1px solid #334155;
+        border-radius: 6px;
+        background: #0f0f23;
+        color: #e2e8f0;
+        font-family: inherit;
+        font-size: 12px;
+        resize: none;
+        outline: none;
+      ">${content}</textarea>
+      
+      <input type="text" id="edit-title" placeholder="Enter prompt title..." value="${title}" style="
+        padding: 8px;
+        border: 1px solid #334155;
+        border-radius: 6px;
+        background: #0f0f23;
+        color: #e2e8f0;
+        font-family: inherit;
+        font-size: 12px;
+        outline: none;
+      ">
+      
+      <select id="edit-category" style="
+        padding: 8px;
+        border: 1px solid #334155;
+        border-radius: 6px;
+        background: #0f0f23;
+        color: #e2e8f0;
+        font-family: inherit;
+        font-size: 12px;
+        outline: none;
+      ">
+        <option value="general" ${category === 'general' ? 'selected' : ''}>General</option>
+        <option value="writing" ${category === 'writing' ? 'selected' : ''}>Writing</option>
+        <option value="coding" ${category === 'coding' ? 'selected' : ''}>Coding</option>
+        <option value="analysis" ${category === 'analysis' ? 'selected' : ''}>Analysis</option>
+        <option value="communication" ${category === 'communication' ? 'selected' : ''}>Communication</option>
+        <option value="creative" ${category === 'creative' ? 'selected' : ''}>Creative</option>
+        <option value="business" ${category === 'business' ? 'selected' : ''}>Business</option>
+        <option value="education" ${category === 'education' ? 'selected' : ''}>Education</option>
+      </select>
+      
+      <div style="display: flex; gap: 8px;">
+        <button id="edit-save" style="
+          flex: 1;
+          padding: 8px;
+          background: #ea580c;
+          color: white;
+          border: none;
+          border-radius: 6px;
+          font-size: 12px;
+          font-weight: 600;
+          cursor: pointer;
+        ">${isEditing ? 'Update' : 'Save'}</button>
+        <button id="edit-cancel" style="
+          flex: 1;
+          padding: 8px;
+          background: #374151;
+          color: #d1d5db;
+          border: none;
+          border-radius: 6px;
+          font-size: 12px;
+          font-weight: 600;
+          cursor: pointer;
+        ">Cancel</button>
+      </div>
+    `;
+
+    // Replace the prompts list with edit form
+    this.container.appendChild(editForm);
+
+    // Add event listeners
+    editForm.querySelector('#edit-save').addEventListener('click', () => {
+      this.saveEditedPrompt(prompt);
+    });
+
+    editForm.querySelector('#edit-cancel').addEventListener('click', () => {
+      this.hideEditDialog();
+    });
+
+    // Focus on content textarea
+    setTimeout(() => {
+      editForm.querySelector('#edit-content').focus();
+    }, 100);
+  }
+
+  async saveEditedPrompt(originalPrompt) {
+    const content = this.container.querySelector('#edit-content').value.trim();
+    const title = this.container.querySelector('#edit-title').value.trim();
+    const category = this.container.querySelector('#edit-category').value;
+
+    if (!content) {
+      this.showNotification('Please enter content', 'error');
+      return;
+    }
+
+    const finalTitle = title || this.generateTitle(content);
+
+    if (originalPrompt) {
+      // Update existing prompt
+      const promptIndex = this.prompts.findIndex(p => p.id === originalPrompt.id);
+      this.prompts[promptIndex] = {
+        ...originalPrompt,
+        title: finalTitle,
+        content: content,
+        category: category,
+        updatedAt: new Date().toISOString()
+      };
+      this.showNotification('Prompt updated!', 'success');
+    } else {
+      // Create new prompt
+      await this.addPrompt(finalTitle, content, category);
+    }
+
+    this.hideEditDialog();
+  }
+
+  hideEditDialog() {
+    // Remove edit form
+    const editForm = this.container.querySelector('#promptdex-edit-form');
+    if (editForm) {
+      editForm.remove();
+    }
+
+    // Show main picker content
+    const promptsList = this.container.querySelector('#promptdex-prompts-list');
+    const searchBox = this.container.querySelector('#promptdex-search');
+    promptsList.style.display = 'block';
+    searchBox.style.display = 'block';
+
+    // Re-render prompts
+    this.renderPrompts();
   }
 
   escapeHtml(text) {

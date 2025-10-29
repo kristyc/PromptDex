@@ -6,7 +6,7 @@ Your personal prompt library - save, organize, and deploy AI prompts instantly.
 
 - 💾 **Local storage** - Fast, reliable prompt storage with JSON backup/restore
 - 🗂️ **Custom categories** - Create and manage your own organization system
-- 🔤 **Variable support** - Use `{{variable}}` syntax for dynamic prompts
+- 🔤 **Variable support** - Use `{variable}` syntax for dynamic prompts
 - ⌨️ **Floating picker** - Press `Ctrl+Shift+P` on AI platforms for instant access
 - 🎯 **Smart injection** - AI asks for variables naturally during execution
 - 📱 **Cross-platform** - Works on ChatGPT and Claude
@@ -33,12 +33,12 @@ Your personal prompt library - save, organize, and deploy AI prompts instantly.
 **Save Prompts:**
 - Right-click any selected text → "Save to PromptDex"
 - Click "Add Prompt" in the extension popup
-- Assign custom categories and use variables like `{{topic}}`
+- Assign custom categories and use variables like `{topic}`
 
 **Use Prompts:**
 - On ChatGPT or Claude, press `Ctrl+Shift+P`
 - Select your prompt from the floating dark-themed picker
-- AI will naturally ask for any `{{variables}}` needed
+- AI will naturally ask for any `{variables}` needed
 
 **Manage & Backup:**
 - Click ⚙️ Settings to export/import your prompt library
@@ -48,18 +48,18 @@ Your personal prompt library - save, organize, and deploy AI prompts instantly.
 ## Example Prompts
 
 ```
-Write a {{length}} blog post about {{topic}} for {{audience}}. 
-Make the tone {{tone}} and include 3 actionable tips.
+Write a {length} blog post about {topic} for {audience}. 
+Make the tone {tone} and include 3 actionable tips.
 ```
 
 ```
-Debug this {{language}} code: {{code}}. 
+Debug this {language} code: {code}. 
 Explain what's wrong and provide the corrected version.
 ```
 
 ```
-Create a {{type}} for {{project_name}} that covers {{requirements}}. 
-Format it professionally for {{stakeholder_type}}.
+Create a {type} for {project_name} that covers {requirements}. 
+Format it professionally for {stakeholder_type}.
 ```
 
 ## Features in Detail

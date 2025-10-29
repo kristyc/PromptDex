@@ -9,7 +9,7 @@
     
     body {
       width: 420px;
-      min-height: 520px;
+      min-height: 480px;
       margin: 0;
       padding: 0;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Inter', sans-serif;
@@ -123,8 +123,8 @@
     .prompts-list {
       flex: 1;
       overflow-y: auto;
-      margin-bottom: 16px;
-      min-height: 280px;
+      min-height: 200px;
+      max-height: 320px;
     }
     
     .prompts-list::-webkit-scrollbar {
@@ -231,40 +231,6 @@
     
     .prompt-action-btn.use:hover {
       background: #dc2626;
-    }
-    
-    .actions {
-      display: flex;
-      gap: 10px;
-      padding-top: 16px;
-      border-top: 1px solid #1e293b;
-    }
-    
-    .btn {
-      flex: 1;
-      padding: 12px 16px;
-      border: none;
-      border-radius: 10px;
-      font-weight: 600;
-      font-size: 14px;
-      cursor: pointer;
-      transition: all 0.2s;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 6px;
-    }
-    
-    .btn-primary {
-      background: #ea580c;
-      color: white;
-      box-shadow: 0 4px 12px rgba(234, 88, 12, 0.3);
-    }
-    
-    .btn-primary:hover {
-      background: #dc2626;
-      transform: translateY(-1px);
-      box-shadow: 0 6px 16px rgba(234, 88, 12, 0.4);
     }
     
     .empty-state {
@@ -383,14 +349,22 @@
     <div class="header">
       <div class="title">PromptDex</div>
       <div style="display: flex; gap: 8px; align-items: center;">
+        <button id="expandBtn" style="background: none; border: none; color: #94a3b8; cursor: pointer; font-size: 16px; padding: 4px;" title="Full View">🔍</button>
         <button id="settingsBtn" style="background: none; border: none; color: #94a3b8; cursor: pointer; font-size: 16px; padding: 4px;" title="Settings">⚙️</button>
         <img src="../icons/icon48.png" alt="PromptDex" style="width: 24px; height: 24px; opacity: 0.8;">
       </div>
     </div>
     
-    <div style="padding: 0 0 16px 0; font-size: 11px; color: #e2e8f0; text-align: center; border-bottom: 1px solid #1e293b; margin-bottom: 16px;">
-      <div style="margin-bottom: 4px; font-weight: 600; color: #f97316;">On ChatGPT/Claude: Press Ctrl+Shift+P</div>
-      <div style="color: #e2e8f0;">Right-click selected text to save as prompt</div>
+    <div style="padding: 0 0 16px 0; border-bottom: 1px solid #1e293b; margin-bottom: 16px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+        <div style="font-size: 11px; color: #e2e8f0;">
+          <div class="shortcut-guidance" style="margin-bottom: 4px; font-weight: 600; color: #f97316;">On ChatGPT/Claude: Press Ctrl+Shift+P</div>
+          <div style="color: #e2e8f0;">Right-click selected text to save as prompt</div>
+        </div>
+        <button id="addPromptBtn" style="background: #ea580c; color: white; border: none; padding: 8px 12px; border-radius: 8px; font-weight: 600; font-size: 12px; cursor: pointer; white-space: nowrap;">
+          ➕ Add Prompt
+        </button>
+      </div>
     </div>
     
     <input type="text" id="searchBox" class="search-box" placeholder="Search prompts...">
@@ -406,12 +380,6 @@
           <p>Add your first prompt to get started!</p>
         </div>
       </div>
-      
-      <div class="actions">
-        <button id="addPromptBtn" class="btn btn-primary">
-          ➕ Add Prompt
-        </button>
-      </div>
     </div>
   </div>
   
@@ -420,12 +388,14 @@
     <div class="modal">
       <h3 class="modal-title" id="modalTitle">Add New Prompt</h3>
       <div style="margin-bottom: 12px; padding: 10px; background: #0f0f23; border: 1px solid #334155; border-radius: 6px; font-size: 12px; color: #94a3b8; line-height: 1.4;">
-        💡 <strong style="color: #f97316;">Tip:</strong> Add variables like {{topic}}, {{tone}}, {{audience}} and the LLM will ask you for the values when you run the prompt.
+        💡 <strong style="color: #f97316;">Variables:</strong> Use {variable} for user input • Use [option1/option2/option3] for multiple choice<br>
+        <span style="font-size: 11px; color: #64748b;">Legacy formats {{var}}, &lt;var&gt;, var[name] will be auto-converted</span>
       </div>
       <textarea id="promptContent" class="modal-input modal-textarea" placeholder="Enter prompt content...
 
-Example with variables:
-Write a {{type}} about {{topic}} in {{tone}} tone for {{audience}}."></textarea>
+Examples:
+• Variables: Write a {type} about {topic} in {tone} tone for {audience}
+• Multiple choice: Create a [formal/casual/playful] email about [work/personal/business]"></textarea>
       <input type="text" id="promptTitle" class="modal-input" placeholder="Enter prompt title...">
       <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 16px;">
         <select id="promptCategory" class="modal-input" style="margin-bottom: 0; flex: 1;">
@@ -466,47 +436,53 @@ Write a {{type}} about {{topic}} in {{tone}} tone for {{audience}}."></textarea>
   
   <!-- Settings Modal -->
   <div class="modal-overlay" id="settingsModal">
-    <div class="modal">
-      <h3 class="modal-title">Settings</h3>
-      
-      <div style="margin-bottom: 20px;">
-        <h4 style="margin: 0 0 12px 0; color: #f1f5f9; font-size: 14px;">Backup & Restore</h4>
-        
-        <div style="margin-bottom: 12px;">
-          <button class="modal-btn modal-btn-primary" id="exportData" style="width: 100%; margin-bottom: 8px;">
-            📤 Export Prompts & Categories
-          </button>
-          <p style="margin: 0; font-size: 11px; color: #94a3b8;">Download your prompts and categories as JSON backup file</p>
-        </div>
-        
-        <div style="margin-bottom: 12px;">
-          <input type="file" id="importFile" accept=".json" style="display: none;">
-          <button class="modal-btn modal-btn-secondary" id="importData" style="width: 100%; margin-bottom: 8px;">
-            📥 Import Backup
-          </button>
-          <p style="margin: 0; font-size: 11px; color: #94a3b8;">Restore prompts and categories from JSON backup file</p>
-        </div>
-        
-        <div style="border-top: 1px solid #334155; padding-top: 12px;">
-          <div style="background: #0f0f23; border: 1px solid #334155; border-radius: 6px; padding: 10px;">
-            <p style="margin: 0; font-size: 11px; color: #94a3b8; line-height: 1.4;">
-              💡 <strong style="color: #f97316;">Tip:</strong> Regular backups ensure you never lose your prompts. Export before making major changes.
-            </p>
-          </div>
+    <div class="modal" style="max-width: 400px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+        <h3 class="modal-title" style="margin: 0;">Settings</h3>
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <span style="font-size: 11px; color: #e2e8f0;">PromptDex v1.1</span>
+          <button id="closeSettings" style="background: none; border: none; color: #94a3b8; cursor: pointer; font-size: 24px; padding: 4px; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 4px; transition: all 0.2s;" onmouseover="this.style.background='#374151'; this.style.color='#e2e8f0';" onmouseout="this.style.background='none'; this.style.color='#94a3b8';">×</button>
         </div>
       </div>
       
+      <!-- Shortcuts Section -->
       <div style="margin-bottom: 16px;">
-        <h4 style="margin: 0 0 8px 0; color: #f1f5f9; font-size: 14px;">About</h4>
-        <p style="margin: 0; font-size: 12px; color: #94a3b8; line-height: 1.4;">
-          PromptDex v1.1 - Your personal AI prompt library<br>
-          <span style="font-size: 10px; color: #64748b;">Built with Claude Code</span>
+        <h4 style="margin: 0 0 10px 0; color: #f97316; font-size: 14px; font-weight: 600;">⌨️ Shortcuts</h4>
+        <div style="background: #0f0f23; border: 1px solid #334155; border-radius: 6px; padding: 12px;">
+          <label style="display: block; margin-bottom: 8px; font-size: 13px; color: #e2e8f0;">Floating Picker:</label>
+          <input type="text" id="shortcutInput" style="width: 100%; padding: 8px 10px; border: 1px solid #334155; border-radius: 4px; background: #1e293b; color: #e2e8f0; font-size: 13px; margin-bottom: 10px; box-sizing: border-box;" placeholder="Ctrl+Shift+P" readonly>
+          <div style="display: flex; gap: 8px;">
+            <button class="modal-btn modal-btn-secondary" id="resetShortcut" style="flex: 1; font-size: 12px; padding: 6px 8px;">Reset</button>
+            <button class="modal-btn modal-btn-primary" id="recordShortcut" style="flex: 1; font-size: 12px; padding: 6px 8px;">Record</button>
+          </div>
+          <p style="margin: 8px 0 0 0; font-size: 11px; color: #e2e8f0; line-height: 1.3;">Click Record then press your desired key combination</p>
+        </div>
+      </div>
+      
+      <!-- Backup Section -->
+      <div style="margin-bottom: 16px;">
+        <h4 style="margin: 0 0 10px 0; color: #14b8a6; font-size: 14px; font-weight: 600;">💾 Backup & Restore</h4>
+        <div style="background: #0f0f23; border: 1px solid #334155; border-radius: 6px; padding: 12px;">
+          <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+            <button class="modal-btn modal-btn-primary" id="exportData" style="flex: 1; font-size: 12px; padding: 8px;">
+              📤 Export
+            </button>
+            <input type="file" id="importFile" accept=".json" style="display: none;">
+            <button class="modal-btn modal-btn-secondary" id="importData" style="flex: 1; font-size: 12px; padding: 8px;">
+              📥 Import
+            </button>
+          </div>
+          <p style="margin: 0; font-size: 11px; color: #e2e8f0; line-height: 1.3;">Export/import your prompts and categories as JSON files</p>
+        </div>
+      </div>
+      
+      <!-- Bottom tip section -->
+      <div style="background: #0f0f23; border: 1px solid #334155; border-radius: 6px; padding: 10px; margin-bottom: 16px;">
+        <p style="margin: 0; font-size: 11px; color: #e2e8f0; line-height: 1.3; text-align: center;">
+          💡 <strong style="color: #f97316;">Tip:</strong> Export regularly to backup your prompts safely
         </p>
       </div>
       
-      <div class="modal-buttons">
-        <button class="modal-btn modal-btn-secondary" id="closeSettings">Close</button>
-      </div>
     </div>
   </div>
   

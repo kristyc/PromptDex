@@ -3,6 +3,8 @@ class SimplePopupManager {
     this.prompts = [];
     this.currentCategory = 'all';
     this.categories = ['general', 'writing', 'coding', 'analysis', 'communication', 'creative', 'business', 'education'];
+    this.currentShortcut = 'Ctrl+Shift+P';
+    this.isRecordingShortcut = false;
     this.isVivaldi = this.detectVivaldi();
     console.log('Browser detected:', this.isVivaldi ? 'Vivaldi' : 'Other');
     this.init();
@@ -22,15 +24,21 @@ class SimplePopupManager {
   async init() {
     await this.loadPrompts();
     await this.loadCategories();
+    await this.loadShortcut();
     this.setupEventListeners();
     this.renderCategories();
     this.renderPrompts();
+    this.updateGuidanceText();
+    
+    // Check for pending right-click prompt
+    await this.checkForRightClickPrompt();
   }
   
   setupEventListeners() {
     document.getElementById('addPromptBtn').addEventListener('click', () => this.showAddPromptModal());
     document.getElementById('searchBox').addEventListener('input', (e) => this.handleSearch(e.target.value));
     document.getElementById('settingsBtn').addEventListener('click', () => this.showSettingsModal());
+    document.getElementById('expandBtn').addEventListener('click', () => this.openFullView());
     
     // Modal events
     document.getElementById('savePrompt').addEventListener('click', () => this.handleSavePrompt());
@@ -46,6 +54,8 @@ class SimplePopupManager {
     document.getElementById('importData').addEventListener('click', () => document.getElementById('importFile').click());
     document.getElementById('importFile').addEventListener('change', (e) => this.importData(e));
     document.getElementById('closeSettings').addEventListener('click', () => this.hideSettingsModal());
+    document.getElementById('recordShortcut').addEventListener('click', () => this.startRecordingShortcut());
+    document.getElementById('resetShortcut').addEventListener('click', () => this.resetShortcut());
     
     // Auto-predict title when content changes
     document.getElementById('promptContent').addEventListener('input', () => {
@@ -177,8 +187,8 @@ class SimplePopupManager {
     }
   }
   
-  showAddPromptModal(promptToEdit = null) {
-    console.log('Showing add prompt modal', promptToEdit ? 'for editing' : 'for new prompt');
+  showAddPromptModal(promptToEdit = null, rightClickData = null) {
+    console.log('Showing add prompt modal', promptToEdit ? 'for editing' : rightClickData ? 'for right-click' : 'for new prompt');
     const modal = document.getElementById('addPromptModal');
     const modalTitle = document.getElementById('modalTitle');
     const saveBtn = document.getElementById('savePrompt');
@@ -196,6 +206,17 @@ class SimplePopupManager {
       document.getElementById('promptTitle').value = promptToEdit.title;
       document.getElementById('promptCategory').value = promptToEdit.category || 'general';
       this.editingPromptId = promptToEdit.id;
+    } else if (rightClickData) {
+      // Right-click mode with auto-filled data
+      modalTitle.textContent = 'Save Selected Text as Prompt';
+      saveBtn.textContent = 'Save Prompt';
+      document.getElementById('promptContent').value = rightClickData.content;
+      document.getElementById('promptTitle').value = rightClickData.title;
+      document.getElementById('promptCategory').value = rightClickData.category;
+      this.editingPromptId = null;
+      
+      // Show a helpful message about auto-filled data
+      this.showNotification('Auto-filled from selected text. Review and save!', 'info');
     } else {
       // Add mode
       modalTitle.textContent = 'Add New Prompt';
@@ -237,7 +258,7 @@ class SimplePopupManager {
     }
     
     // Clean up and capitalize
-    title = title.replace(/{{.*?}}/g, '[variable]'); // Replace variables
+    title = title.replace(/{.*?}/g, '[variable]'); // Replace variables
     title = title.charAt(0).toUpperCase() + title.slice(1);
     
     // Limit length
@@ -255,7 +276,7 @@ class SimplePopupManager {
       console.log('Starting handleSavePrompt');
       
       const title = document.getElementById('promptTitle').value.trim();
-      const content = document.getElementById('promptContent').value.trim();
+      let content = document.getElementById('promptContent').value.trim();
       const category = document.getElementById('promptCategory').value;
       
       if (!content) {
@@ -263,6 +284,9 @@ class SimplePopupManager {
         this.showNotification('Please enter content', 'error');
         return;
       }
+      
+      // Check for old variable formats and offer conversion
+      content = await this.checkAndConvertVariables(content);
       
       if (!title) {
         console.log('No title provided, auto-predicting');
@@ -666,9 +690,110 @@ class SimplePopupManager {
     ).join('');
   }
 
+  // Keyboard Shortcut Methods
+  async loadShortcut() {
+    try {
+      const result = await chrome.storage.local.get(['customShortcut']);
+      if (result.customShortcut) {
+        this.currentShortcut = result.customShortcut;
+      }
+    } catch (error) {
+      console.error('Failed to load shortcut:', error);
+    }
+  }
+
+  async saveShortcut() {
+    try {
+      await chrome.storage.local.set({customShortcut: this.currentShortcut});
+      return true;
+    } catch (error) {
+      console.error('Failed to save shortcut:', error);
+      return false;
+    }
+  }
+
+  updateGuidanceText() {
+    const guidanceElements = document.querySelectorAll('.shortcut-guidance');
+    guidanceElements.forEach(el => {
+      if (el) {
+        el.textContent = `On ChatGPT/Claude: Press ${this.currentShortcut}`;
+      }
+    });
+  }
+
+  startRecordingShortcut() {
+    this.isRecordingShortcut = true;
+    const recordBtn = document.getElementById('recordShortcut');
+    const shortcutInput = document.getElementById('shortcutInput');
+    
+    recordBtn.textContent = 'Press Keys...';
+    recordBtn.disabled = true;
+    shortcutInput.value = 'Press your key combination...';
+    shortcutInput.style.background = '#ea580c';
+    
+    // Listen for keydown on the whole document
+    document.addEventListener('keydown', this.handleShortcutRecording.bind(this), true);
+  }
+
+  handleShortcutRecording(e) {
+    if (!this.isRecordingShortcut) return;
+    
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const keys = [];
+    if (e.ctrlKey) keys.push('Ctrl');
+    if (e.altKey) keys.push('Alt');
+    if (e.shiftKey) keys.push('Shift');
+    if (e.metaKey) keys.push('Meta');
+    
+    // Add the main key if it's not a modifier
+    if (!['Control', 'Alt', 'Shift', 'Meta'].includes(e.key)) {
+      keys.push(e.key.length === 1 ? e.key.toUpperCase() : e.key);
+      
+      // Only finish recording when we have modifier(s) + a non-modifier key
+      if (keys.length > 1) {
+        const shortcut = keys.join('+');
+        this.finishRecordingShortcut(shortcut);
+      }
+    }
+    // Don't finish recording if only modifiers are pressed
+  }
+
+  async finishRecordingShortcut(shortcut) {
+    this.isRecordingShortcut = false;
+    document.removeEventListener('keydown', this.handleShortcutRecording.bind(this), true);
+    
+    const recordBtn = document.getElementById('recordShortcut');
+    const shortcutInput = document.getElementById('shortcutInput');
+    
+    recordBtn.textContent = 'Record New';
+    recordBtn.disabled = false;
+    shortcutInput.style.background = '#0f0f23';
+    
+    this.currentShortcut = shortcut;
+    shortcutInput.value = shortcut;
+    
+    await this.saveShortcut();
+    this.updateGuidanceText();
+    this.showNotification(`Shortcut updated to ${shortcut}`, 'success');
+  }
+
+  async resetShortcut() {
+    this.currentShortcut = 'Ctrl+Shift+P';
+    await this.saveShortcut();
+    
+    const shortcutInput = document.getElementById('shortcutInput');
+    shortcutInput.value = this.currentShortcut;
+    
+    this.updateGuidanceText();
+    this.showNotification('Shortcut reset to default', 'success');
+  }
+
   // Settings Modal Methods
   showSettingsModal() {
     document.getElementById('settingsModal').style.display = 'flex';
+    document.getElementById('shortcutInput').value = this.currentShortcut;
   }
 
   hideSettingsModal() {
@@ -777,6 +902,106 @@ class SimplePopupManager {
     }
 
     return true;
+  }
+
+  async checkAndConvertVariables(content) {
+    // Check for old double bracket format {{variable}}
+    const hasDoubleBrackets = /\{\{[^}]+\}\}/.test(content);
+    
+    // Check for var[variable] format
+    const hasVarBrackets = /var\[[^\]]+\]/gi.test(content);
+    
+    // Check for angle bracket format <variable>
+    const hasAngleBrackets = /<[^>]+>/.test(content);
+    
+    // Check for single-value [variable] format (not multiple choice)
+    const singleValueBrackets = [];
+    const bracketMatches = content.match(/\[[^\]]+\]/g) || [];
+    bracketMatches.forEach(match => {
+      const content_inner = match.slice(1, -1);
+      const hasMultipleValues = /[,\/\|]|(\s+or\s+)|(\s+and\s+)/.test(content_inner.trim());
+      if (!hasMultipleValues && /^[a-zA-Z_][a-zA-Z0-9_\s]*$/.test(content_inner.trim())) {
+        singleValueBrackets.push(match);
+      }
+    });
+    
+    if (hasDoubleBrackets || hasVarBrackets || hasAngleBrackets || singleValueBrackets.length > 0) {
+      let conversionMessage = 'Found old variable format(s) in your prompt:\n\n';
+      
+      if (hasDoubleBrackets) {
+        const doubleBracketVars = content.match(/\{\{[^}]+\}\}/g) || [];
+        conversionMessage += `• Double brackets: ${doubleBracketVars.join(', ')}\n`;
+      }
+      
+      if (hasVarBrackets) {
+        const varBracketVars = content.match(/var\[[^\]]+\]/gi) || [];
+        conversionMessage += `• Var format: ${varBracketVars.join(', ')}\n`;
+      }
+      
+      if (hasAngleBrackets) {
+        const angleBracketVars = content.match(/<[^>]+>/g) || [];
+        conversionMessage += `• Angle brackets: ${angleBracketVars.join(', ')}\n`;
+      }
+      
+      if (singleValueBrackets.length > 0) {
+        conversionMessage += `• Single variables: ${singleValueBrackets.join(', ')}\n`;
+      }
+      
+      conversionMessage += '\nWould you like to convert them to the new {variable} format?\n';
+      conversionMessage += '(Note: [option1/option2/option3] will remain as multiple choice)';
+      
+      if (confirm(conversionMessage)) {
+        // Convert {{variable}} to {variable}
+        let convertedContent = content.replace(/\{\{([^}]+)\}\}/g, '{$1}');
+        
+        // Convert var[variable] to {variable}
+        convertedContent = convertedContent.replace(/var\[([^\]]+)\]/gi, '{$1}');
+        
+        // Convert <variable> to {variable}
+        convertedContent = convertedContent.replace(/<([^>]+)>/g, '{$1}');
+        
+        // Convert single-value [variable] to {variable}
+        convertedContent = convertedContent.replace(/\[([^\]]+)\]/g, (match, content_inner) => {
+          const hasMultipleValues = /[,\/\|]|(\s+or\s+)|(\s+and\s+)/.test(content_inner.trim());
+          if (!hasMultipleValues && /^[a-zA-Z_][a-zA-Z0-9_\s]*$/.test(content_inner.trim())) {
+            return `{${content_inner.trim()}}`;
+          }
+          return match; // Keep multiple choice as [option1/option2/option3]
+        });
+        
+        // Update the textarea to show the converted content
+        document.getElementById('promptContent').value = convertedContent;
+        
+        this.showNotification('Variables converted to new format!', 'success');
+        return convertedContent;
+      }
+    }
+    
+    return content;
+  }
+
+  async checkForRightClickPrompt() {
+    try {
+      const result = await chrome.storage.local.get(['pendingRightClickPrompt']);
+      if (result.pendingRightClickPrompt) {
+        const promptData = result.pendingRightClickPrompt;
+        console.log('Found pending right-click prompt:', promptData);
+        
+        // Clear the pending data
+        await chrome.storage.local.remove(['pendingRightClickPrompt']);
+        
+        // Show the add prompt modal with auto-filled data
+        this.showAddPromptModal(null, promptData);
+      }
+    } catch (error) {
+      console.error('Error checking for right-click prompt:', error);
+    }
+  }
+
+  openFullView() {
+    chrome.tabs.create({
+      url: chrome.runtime.getURL('fullview/fullview.html')
+    });
   }
 }
 
