@@ -17,6 +17,8 @@ class EmbeddedPromptDex {
 
   async init() {
     console.log('🔄 Initializing PromptDex...');
+    console.log('🌐 Current URL:', window.location.href);
+    console.log('🎯 Detected platform:', this.platform);
     
     await this.loadPrompts();
     console.log('📚 Loaded', this.prompts.length, 'prompts');
@@ -34,6 +36,7 @@ class EmbeddedPromptDex {
     console.log('🖱️ Set up context menu');
     
     console.log(`✅ PromptDex ready! Press ${this.currentShortcut} to open`);
+    console.log('🔍 Extension should be working. Try the keyboard shortcut now.');
   }
 
   detectPlatform() {
@@ -175,6 +178,7 @@ class EmbeddedPromptDex {
       // Check for custom shortcut
       if (this.matchesShortcut(e)) {
         e.preventDefault();
+        console.log('🎯 Keyboard shortcut detected, toggling picker');
         this.togglePicker();
       }
       

@@ -12,7 +12,8 @@
   "host_permissions": [
     "https://chat.openai.com/*",
     "https://chatgpt.com/*",
-    "https://claude.ai/*"
+    "https://claude.ai/*",
+    "https://*.claude.ai/*"
   ],
   "icons": {
     "16": "icons/icon16.png",
@@ -36,7 +37,8 @@
       "matches": [
         "https://chat.openai.com/*",
         "https://chatgpt.com/*",
-        "https://claude.ai/*"
+        "https://claude.ai/*",
+        "https://*.claude.ai/*"
       ],
       "js": [
         "content/embedded-promptdex.js"
@@ -61,7 +63,8 @@
       "matches": [
         "https://chat.openai.com/*",
         "https://chatgpt.com/*",
-        "https://claude.ai/*"
+        "https://claude.ai/*",
+        "https://*.claude.ai/*"
       ]
     }
   ]
