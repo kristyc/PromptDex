@@ -3,7 +3,20 @@
 
 class SimpleBackground {
   constructor() {
+    this.isVivaldi = this.detectVivaldi();
     this.init();
+  }
+
+  detectVivaldi() {
+    try {
+      // Check if we can detect Vivaldi from background context
+      // In Vivaldi, chrome.action.openPopup often fails from background scripts
+      return navigator.userAgent.includes('Vivaldi') || 
+             (typeof window !== 'undefined' && window.vivaldi !== undefined);
+    } catch (error) {
+      // In service worker context, navigator might not be available
+      return false;
+    }
   }
 
   init() {
@@ -63,9 +76,27 @@ class SimpleBackground {
       // Store in chrome.storage so popup can access it
       await chrome.storage.local.set({pendingRightClickPrompt: promptData});
       
-      // Open the extension popup by creating a new tab with the popup URL
-      // This will trigger the popup to open and detect the pending right-click data
-      chrome.action.openPopup();
+      // Try different approaches based on browser
+      if (this.isVivaldi) {
+        console.log('Vivaldi detected, using alternative popup method');
+        
+        // For Vivaldi, show a notification and let user manually open
+        this.showNotification('✅ Text saved! Click the PromptDex icon to add it as a prompt.', 'info');
+        
+        // Optional: Try opening popup in a new tab as complete fallback
+        // chrome.tabs.create({ url: chrome.runtime.getURL('popup/popup.html') });
+      } else {
+        // Try standard popup opening for other browsers
+        try {
+          await chrome.action.openPopup();
+          console.log('Successfully opened popup via chrome.action.openPopup');
+        } catch (error) {
+          console.log('chrome.action.openPopup failed:', error.message);
+          
+          // Fallback notification for any browser where popup fails
+          this.showNotification('✅ Text saved! Click the PromptDex icon to add it as a prompt.', 'info');
+        }
+      }
       
       console.log('Prepared right-click prompt data for popup');
     } catch (error) {

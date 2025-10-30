@@ -6,6 +6,8 @@ class SimplePopupManager {
     this.currentShortcut = 'Ctrl+Shift+P';
     this.isRecordingShortcut = false;
     this.isVivaldi = this.detectVivaldi();
+    this.draftData = null;
+    this.lastSelectedCategory = 'general';
     console.log('Browser detected:', this.isVivaldi ? 'Vivaldi' : 'Other');
     this.init();
   }
@@ -25,6 +27,9 @@ class SimplePopupManager {
     await this.loadPrompts();
     await this.loadCategories();
     await this.loadShortcut();
+    await this.loadDraftData();
+    await this.loadLastSelectedCategory();
+    await this.loadCustomUrls();
     this.setupEventListeners();
     this.renderCategories();
     this.renderPrompts();
@@ -35,10 +40,11 @@ class SimplePopupManager {
   }
   
   setupEventListeners() {
-    document.getElementById('addPromptBtn').addEventListener('click', () => this.showAddPromptModal());
-    document.getElementById('searchBox').addEventListener('input', (e) => this.handleSearch(e.target.value));
-    document.getElementById('settingsBtn').addEventListener('click', () => this.showSettingsModal());
-    document.getElementById('expandBtn').addEventListener('click', () => this.openFullView());
+    try {
+      document.getElementById('addPromptBtn').addEventListener('click', () => this.showAddPromptModal());
+      document.getElementById('searchBox').addEventListener('input', (e) => this.handleSearch(e.target.value));
+      document.getElementById('settingsBtn').addEventListener('click', () => this.showSettingsModal());
+      document.getElementById('expandBtn').addEventListener('click', () => this.openFullView());
     
     // Modal events
     document.getElementById('savePrompt').addEventListener('click', () => this.handleSavePrompt());
@@ -56,12 +62,27 @@ class SimplePopupManager {
     document.getElementById('closeSettings').addEventListener('click', () => this.hideSettingsModal());
     document.getElementById('recordShortcut').addEventListener('click', () => this.startRecordingShortcut());
     document.getElementById('resetShortcut').addEventListener('click', () => this.resetShortcut());
+    document.getElementById('cleanupBrackets').addEventListener('click', () => this.cleanupAllVariableFormats());
+    document.getElementById('editUrls').addEventListener('click', () => this.showUrlManager());
+    document.getElementById('addUrl').addEventListener('click', () => this.addCustomUrl());
+    document.getElementById('closeUrlManager').addEventListener('click', () => this.hideUrlManager());
     
-    // Auto-predict title when content changes
+    // Auto-predict title when content changes and save draft
     document.getElementById('promptContent').addEventListener('input', () => {
       if (!document.getElementById('promptTitle').value.trim()) {
         this.predictTitle();
       }
+      this.saveDraftData();
+    });
+    
+    // Save draft when title changes
+    document.getElementById('promptTitle').addEventListener('input', () => {
+      this.saveDraftData();
+    });
+    
+    // Save draft when category changes
+    document.getElementById('promptCategory').addEventListener('change', () => {
+      this.saveDraftData();
     });
     
     // Close modal when clicking overlay
@@ -112,6 +133,9 @@ class SimplePopupManager {
         }
       }
     });
+    } catch (error) {
+      console.error('Error setting up event listeners:', error);
+    }
   }
   
   async loadPrompts() {
@@ -218,12 +242,24 @@ class SimplePopupManager {
       // Show a helpful message about auto-filled data
       this.showNotification('Auto-filled from selected text. Review and save!', 'info');
     } else {
-      // Add mode
+      // Add mode - check for draft data first
       modalTitle.textContent = 'Add New Prompt';
       saveBtn.textContent = 'Save Prompt';
-      document.getElementById('promptContent').value = '';
-      document.getElementById('promptTitle').value = '';
-      document.getElementById('promptCategory').value = 'general';
+      
+      if (this.draftData && (this.draftData.content || this.draftData.title)) {
+        // Restore draft data
+        document.getElementById('promptContent').value = this.draftData.content || '';
+        document.getElementById('promptTitle').value = this.draftData.title || '';
+        document.getElementById('promptCategory').value = this.draftData.category || this.lastSelectedCategory;
+        
+        // Show indication that draft was restored
+        this.showNotification('📝 Draft restored from previous session', 'info');
+      } else {
+        // No draft, use defaults
+        document.getElementById('promptContent').value = '';
+        document.getElementById('promptTitle').value = '';
+        document.getElementById('promptCategory').value = this.lastSelectedCategory;
+      }
       this.editingPromptId = null;
     }
     
@@ -237,6 +273,11 @@ class SimplePopupManager {
     console.log('Hiding add prompt modal');
     const modal = document.getElementById('addPromptModal');
     modal.style.display = 'none';
+    
+    // Save current form data as draft if not editing
+    if (!this.editingPromptId) {
+      this.saveDraftData();
+    }
   }
   
   predictTitle() {
@@ -334,6 +375,15 @@ class SimplePopupManager {
       console.log('Save result:', saved);
       
       if (saved) {
+        // Remember the last selected category for new prompts
+        if (!this.editingPromptId) {
+          this.lastSelectedCategory = category;
+          await this.saveLastSelectedCategory();
+        }
+        
+        // Clear draft data on successful save
+        await this.clearDraftData();
+        
         this.hideAddPromptModal();
         this.renderCategories();
         this.renderPrompts();
@@ -453,12 +503,12 @@ class SimplePopupManager {
     
     promptsListEl.innerHTML = filteredPrompts.map(prompt => `
       <div class="prompt-item" data-prompt-id="${prompt.id}" style="position: relative;">
-        <button class="prompt-action-btn edit" data-action="edit" style="position: absolute; top: 8px; right: 8px; background: #ea580c; color: white; border: none; padding: 4px; border-radius: 4px; font-size: 12px; cursor: pointer; z-index: 2;">✏️</button>
+        <button class="prompt-action-btn edit" data-action="edit" style="position: absolute; top: 8px; right: 8px; background: #ea580c; color: white; border: none; padding: 4px; border-radius: 4px; font-size: 12px; cursor: pointer; z-index: 2;"><i class="far fa-edit"></i></button>
         <div class="prompt-title">${this.escapeHtml(prompt.title)}</div>
         <div class="prompt-preview">${this.escapeHtml(this.truncate(prompt.content, 120))}</div>
         <div class="prompt-actions">
           <button class="prompt-action-btn use" data-action="use">Use</button>
-          <button class="prompt-action-btn delete" data-action="delete" style="position: absolute; bottom: 8px; right: 8px; background: #ea580c; color: white; border: none; padding: 4px; border-radius: 4px; font-size: 12px; cursor: pointer; z-index: 2;">🗑️</button>
+          <button class="prompt-action-btn delete" data-action="delete" style="position: absolute; bottom: 8px; right: 8px; background: #ea580c; color: white; border: none; padding: 4px; border-radius: 4px; font-size: 12px; cursor: pointer; z-index: 2;"><i class="far fa-trash-alt"></i></button>
         </div>
       </div>
     `).join('');
@@ -489,7 +539,7 @@ class SimplePopupManager {
         }, 3000);
       } else {
         console.log('Not an AI tab, current URL:', activeTab.url);
-        this.showNotification(`Please navigate to ${PROMPTDEX_CONFIG.getPlatformUrls()} and press Ctrl+Shift+P to use prompts.`, 'error');
+        this.showNotification('Please navigate to ChatGPT or Claude to use prompts.', 'navigate');
       }
     } catch (error) {
       console.error('Failed to check tab:', error);
@@ -520,6 +570,7 @@ class SimplePopupManager {
       transition: all 0.3s ease;
       ${type === 'success' ? 'background: #14b8a6;' : 
         type === 'error' ? 'background: #dc2626;' : 
+        type === 'navigate' ? 'background: #14b8a6;' :
         'background: #f97316;'}
     `;
     notification.textContent = message;
@@ -585,8 +636,8 @@ class SimplePopupManager {
       <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px; border: 1px solid #334155; border-radius: 6px; margin-bottom: 4px; background: #0f0f23;">
         <span style="color: #e2e8f0; text-transform: capitalize;">${category}</span>
         <div style="display: flex; gap: 4px;">
-          <button class="category-edit-btn" data-category="${category}" style="background: #ea580c; color: white; border: none; padding: 2px 6px; border-radius: 3px; font-size: 10px; cursor: pointer;">✏️</button>
-          <button class="category-delete-btn" data-category="${category}" style="background: #ea580c; color: white; border: none; padding: 2px 6px; border-radius: 3px; font-size: 10px; cursor: pointer;">🗑️</button>
+          <button class="category-edit-btn" data-category="${category}" style="background: #ea580c; color: white; border: none; padding: 2px 6px; border-radius: 3px; font-size: 10px; cursor: pointer;"><i class="far fa-edit"></i></button>
+          <button class="category-delete-btn" data-category="${category}" style="background: #ea580c; color: white; border: none; padding: 2px 6px; border-radius: 3px; font-size: 10px; cursor: pointer;"><i class="far fa-trash-alt"></i></button>
         </div>
       </div>
     `).join('');
@@ -684,10 +735,22 @@ class SimplePopupManager {
   }
 
   populateCategoryDropdown() {
-    const categorySelect = document.getElementById('promptCategory');
-    categorySelect.innerHTML = this.categories.map(category => 
-      `<option value="${category}">${category.charAt(0).toUpperCase() + category.slice(1)}</option>`
-    ).join('');
+    try {
+      const categorySelect = document.getElementById('promptCategory');
+      if (!categorySelect) {
+        console.warn('Category select element not found');
+        return;
+      }
+      
+      categorySelect.innerHTML = this.categories.map(category => {
+        if (!category || typeof category !== 'string') return '';
+        const safeCategoryValue = category.replace(/['"]/g, ''); // Remove quotes that could break HTML
+        const safeCategoryDisplay = this.escapeHtml(category.charAt(0).toUpperCase() + category.slice(1));
+        return `<option value="${safeCategoryValue}">${safeCategoryDisplay}</option>`;
+      }).filter(option => option).join('');
+    } catch (error) {
+      console.error('Error populating category dropdown:', error);
+    }
   }
 
   // Keyboard Shortcut Methods
@@ -716,7 +779,7 @@ class SimplePopupManager {
     const guidanceElements = document.querySelectorAll('.shortcut-guidance');
     guidanceElements.forEach(el => {
       if (el) {
-        el.textContent = `On ChatGPT/Claude: Press ${this.currentShortcut}`;
+        el.innerHTML = `On ChatGPT/Claude: Press <span style="color: #14b8a6;">${this.currentShortcut}</span>`;
       }
     });
   }
@@ -794,6 +857,7 @@ class SimplePopupManager {
   showSettingsModal() {
     document.getElementById('settingsModal').style.display = 'flex';
     document.getElementById('shortcutInput').value = this.currentShortcut;
+    this.updateUrlCount();
   }
 
   hideSettingsModal() {
@@ -845,31 +909,100 @@ class SimplePopupManager {
         return;
       }
 
-      // Ask for confirmation
+      // Calculate import stats
       const promptCount = data.prompts ? data.prompts.length : 0;
       const categoryCount = data.categories ? data.categories.length : 0;
       
-      if (!confirm(`Import ${promptCount} prompts and ${categoryCount} categories? This will replace your current data.`)) {
+      if (!confirm(`Import ${promptCount} prompts and ${categoryCount} categories? New prompts will be added to your existing collection (duplicates will be skipped).`)) {
         return;
       }
 
-      // Import the data
-      if (data.prompts) {
-        this.prompts = data.prompts;
+      let newPromptsAdded = 0;
+      let duplicatesSkipped = 0;
+      let newCategoriesAdded = 0;
+
+      // Import prompts - merge instead of replace
+      if (data.prompts && data.prompts.length > 0) {
+        const existingTitles = new Set(this.prompts.map(p => p.title.toLowerCase().trim()));
+        
+        data.prompts.forEach(importedPrompt => {
+          try {
+            // Ensure we have valid data
+            if (!importedPrompt || !importedPrompt.title || !importedPrompt.content) {
+              console.warn('Skipping invalid prompt:', importedPrompt);
+              return;
+            }
+            
+            // Check for duplicates based on title
+            const titleKey = importedPrompt.title.toLowerCase().trim();
+            if (!existingTitles.has(titleKey)) {
+              // Convert old variable formats to our standard
+              const convertedContent = this.convertVariableFormatsImport(importedPrompt.content.trim());
+              
+              // Ensure the prompt has a unique ID and valid category
+              const newPrompt = {
+                ...importedPrompt,
+                id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+                importedAt: new Date().toISOString(),
+                category: importedPrompt.category || 'general', // Fallback category
+                title: importedPrompt.title.trim(),
+                content: convertedContent
+              };
+              this.prompts.push(newPrompt);
+              existingTitles.add(titleKey);
+              newPromptsAdded++;
+            } else {
+              duplicatesSkipped++;
+            }
+          } catch (promptError) {
+            console.error('Error processing imported prompt:', promptError, importedPrompt);
+            duplicatesSkipped++; // Count as skipped rather than crashing
+          }
+        });
+        
         await this.savePrompts();
       }
 
-      if (data.categories) {
-        this.categories = data.categories;
+      // Import categories - merge instead of replace
+      if (data.categories && data.categories.length > 0) {
+        const existingCategories = new Set(this.categories.map(c => c.toLowerCase().trim()));
+        
+        data.categories.forEach(category => {
+          // Skip if category is empty or invalid
+          if (!category || typeof category !== 'string') return;
+          
+          const categoryKey = category.toLowerCase().trim();
+          if (categoryKey && !existingCategories.has(categoryKey)) {
+            this.categories.push(category.trim());
+            existingCategories.add(categoryKey);
+            newCategoriesAdded++;
+          }
+        });
+        
         await this.saveCategories();
       }
 
       // Refresh the UI
-      this.renderCategories();
-      this.renderPrompts();
-      this.populateCategoryDropdown();
+      try {
+        await this.loadCategories(); // Reload categories from storage first
+        this.renderCategories();
+        this.renderPrompts();
+        this.populateCategoryDropdown();
+      } catch (renderError) {
+        console.error('Error refreshing UI after import:', renderError);
+        this.showNotification('Import completed but there was an issue refreshing the display. Please restart the extension.', 'warning');
+      }
 
-      this.showNotification(`Successfully imported ${promptCount} prompts and ${categoryCount} categories!`, 'success');
+      // Show detailed success message
+      let message = `Import completed! Added ${newPromptsAdded} new prompts`;
+      if (newCategoriesAdded > 0) {
+        message += ` and ${newCategoriesAdded} new categories`;
+      }
+      if (duplicatesSkipped > 0) {
+        message += `. Skipped ${duplicatesSkipped} duplicate prompts`;
+      }
+      
+      this.showNotification(message, 'success');
       this.hideSettingsModal();
 
     } catch (error) {
@@ -882,26 +1015,52 @@ class SimplePopupManager {
   }
 
   validateImportData(data) {
-    // Check if data has the required structure
-    if (!data || typeof data !== 'object') {
-      return false;
-    }
+    try {
+      // Check if data has the required structure
+      if (!data || typeof data !== 'object') {
+        console.error('Import data is not an object');
+        return false;
+      }
 
-    // Check prompts array
-    if (data.prompts && Array.isArray(data.prompts)) {
-      for (const prompt of data.prompts) {
-        if (!prompt.id || !prompt.title || !prompt.content || !prompt.category) {
-          return false;
+      // Check prompts array
+      if (data.prompts && Array.isArray(data.prompts)) {
+        for (const prompt of data.prompts) {
+          if (!prompt || typeof prompt !== 'object') {
+            console.error('Invalid prompt object found');
+            return false;
+          }
+          if (!prompt.title || typeof prompt.title !== 'string') {
+            console.error('Prompt missing valid title');
+            return false;
+          }
+          if (!prompt.content || typeof prompt.content !== 'string') {
+            console.error('Prompt missing valid content');
+            return false;
+          }
+          // Category and ID are less critical, can be auto-generated
         }
       }
-    }
 
-    // Check categories array
-    if (data.categories && !Array.isArray(data.categories)) {
+      // Check categories array
+      if (data.categories && !Array.isArray(data.categories)) {
+        console.error('Categories is not an array');
+        return false;
+      }
+
+      if (data.categories) {
+        for (const category of data.categories) {
+          if (typeof category !== 'string') {
+            console.error('Invalid category found (not a string)');
+            return false;
+          }
+        }
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Error validating import data:', error);
       return false;
     }
-
-    return true;
   }
 
   async checkAndConvertVariables(content) {
@@ -980,6 +1139,67 @@ class SimplePopupManager {
     return content;
   }
 
+  convertVariableFormatsImport(content) {
+    // Automatically convert old formats during import (no user confirmation needed)
+    try {
+      let convertedContent = content;
+      
+      // Convert {{variable}} to {variable}
+      convertedContent = convertedContent.replace(/\{\{([^}]+)\}\}/g, '{$1}');
+      
+      // Convert var[variable] to {variable}
+      convertedContent = convertedContent.replace(/var\[([^\]]+)\]/gi, '{$1}');
+      
+      // Convert <variable> to {variable}
+      convertedContent = convertedContent.replace(/<([^>]+)>/g, '{$1}');
+      
+      // Convert single-value [variable] to {variable}
+      convertedContent = convertedContent.replace(/\[([^\]]+)\]/g, (match, content_inner) => {
+        const hasMultipleValues = /[,\/\|]|(\s+or\s+)|(\s+and\s+)/.test(content_inner.trim());
+        if (!hasMultipleValues && /^[a-zA-Z_][a-zA-Z0-9_\s]*$/.test(content_inner.trim())) {
+          return `{${content_inner.trim()}}`;
+        }
+        return match; // Keep multiple choice as [option1/option2/option3]
+      });
+      
+      return convertedContent;
+    } catch (error) {
+      console.error('Error converting variable formats during import:', error);
+      return content;
+    }
+  }
+
+  async cleanupAllVariableFormats() {
+    try {
+      if (!confirm('This will convert old variable formats ({{var}} and [single]) to our standard {variable} format across ALL your prompts.\n\nMultiple choice options like [opt1/opt2/opt3] will be preserved.\n\nContinue?')) {
+        return;
+      }
+      
+      let convertedCount = 0;
+      
+      this.prompts.forEach(prompt => {
+        const originalContent = prompt.content;
+        const convertedContent = this.convertVariableFormatsImport(prompt.content);
+        
+        if (originalContent !== convertedContent) {
+          prompt.content = convertedContent;
+          convertedCount++;
+        }
+      });
+      
+      if (convertedCount > 0) {
+        await this.savePrompts();
+        this.renderPrompts();
+        this.showNotification(`✅ Cleaned up variable formats in ${convertedCount} prompts!`, 'success');
+      } else {
+        this.showNotification('No variable formats needed cleanup.', 'info');
+      }
+    } catch (error) {
+      console.error('Error during cleanup:', error);
+      this.showNotification('Error during cleanup. Please try again.', 'error');
+    }
+  }
+
   async checkForRightClickPrompt() {
     try {
       const result = await chrome.storage.local.get(['pendingRightClickPrompt']);
@@ -1002,6 +1222,189 @@ class SimplePopupManager {
     chrome.tabs.create({
       url: chrome.runtime.getURL('fullview/fullview.html')
     });
+  }
+
+  // Draft Data Management
+  async loadDraftData() {
+    try {
+      const result = await chrome.storage.local.get(['promptDraftData']);
+      this.draftData = result.promptDraftData || null;
+      console.log('Loaded draft data:', this.draftData);
+    } catch (error) {
+      console.error('Failed to load draft data:', error);
+      this.draftData = null;
+    }
+  }
+
+  async saveDraftData() {
+    try {
+      // Only save if modal is open and we're not editing
+      const modal = document.getElementById('addPromptModal');
+      if (modal.style.display !== 'flex' || this.editingPromptId) {
+        return;
+      }
+
+      const content = document.getElementById('promptContent').value;
+      const title = document.getElementById('promptTitle').value;
+      const category = document.getElementById('promptCategory').value;
+
+      // Only save if there's actual content
+      if (content.trim() || title.trim()) {
+        this.draftData = {
+          content: content,
+          title: title,
+          category: category,
+          timestamp: new Date().toISOString()
+        };
+        
+        await chrome.storage.local.set({promptDraftData: this.draftData});
+        console.log('Saved draft data:', this.draftData);
+      }
+    } catch (error) {
+      console.error('Failed to save draft data:', error);
+    }
+  }
+
+  async clearDraftData() {
+    try {
+      this.draftData = null;
+      await chrome.storage.local.remove(['promptDraftData']);
+      console.log('Cleared draft data');
+    } catch (error) {
+      console.error('Failed to clear draft data:', error);
+    }
+  }
+
+  // Last Selected Category Management
+  async loadLastSelectedCategory() {
+    try {
+      const result = await chrome.storage.local.get(['lastSelectedCategory']);
+      this.lastSelectedCategory = result.lastSelectedCategory || 'general';
+      console.log('Loaded last selected category:', this.lastSelectedCategory);
+    } catch (error) {
+      console.error('Failed to load last selected category:', error);
+      this.lastSelectedCategory = 'general';
+    }
+  }
+
+  async saveLastSelectedCategory() {
+    try {
+      await chrome.storage.local.set({lastSelectedCategory: this.lastSelectedCategory});
+      console.log('Saved last selected category:', this.lastSelectedCategory);
+    } catch (error) {
+      console.error('Failed to save last selected category:', error);
+    }
+  }
+
+  // Custom URLs Management
+  async loadCustomUrls() {
+    try {
+      const result = await chrome.storage.local.get(['customUrls']);
+      this.customUrls = result.customUrls || [
+        'chatgpt.com',
+        'chat.openai.com', 
+        'claude.ai',
+        'gemini.google.com',
+        'ai.com',
+        'perplexity.ai',
+        'www.deepseek.com',
+        'deepseek.com',
+        'x.com',
+        'meta.ai',
+        'grok.com'
+      ];
+      console.log('Loaded custom URLs:', this.customUrls);
+      this.updateUrlCount();
+    } catch (error) {
+      console.error('Failed to load custom URLs:', error);
+      this.customUrls = [
+        'chatgpt.com',
+        'chat.openai.com', 
+        'claude.ai',
+        'gemini.google.com',
+        'ai.com',
+        'perplexity.ai',
+        'www.deepseek.com',
+        'deepseek.com',
+        'x.com',
+        'meta.ai',
+        'grok.com'
+      ];
+      this.updateUrlCount();
+    }
+  }
+
+  async saveCustomUrls() {
+    try {
+      await chrome.storage.local.set({customUrls: this.customUrls});
+      console.log('Saved custom URLs:', this.customUrls);
+    } catch (error) {
+      console.error('Failed to save custom URLs:', error);
+    }
+  }
+
+  renderUrlList() {
+    const urlList = document.getElementById('urlList');
+    if (!urlList) return;
+
+    urlList.innerHTML = this.customUrls.map(url => `
+      <div style="display: flex; justify-content: space-between; align-items: center; padding: 6px; border: 1px solid #334155; border-radius: 4px; margin-bottom: 4px; background: #0f0f23;">
+        <span style="color: #e2e8f0; font-size: 12px; font-family: monospace;">${this.escapeHtml(url)}</span>
+        <button class="url-delete-btn" data-url="${this.escapeHtml(url)}" style="background: #ea580c; color: white; border: none; padding: 2px 6px; border-radius: 3px; font-size: 10px; cursor: pointer;"><i class="far fa-trash-alt"></i></button>
+      </div>
+    `).join('');
+
+    // Add event listeners to delete buttons
+    urlList.querySelectorAll('.url-delete-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const url = e.target.closest('button').dataset.url;
+        this.deleteCustomUrl(url);
+      });
+    });
+  }
+
+  async addCustomUrl() {
+    const url = prompt('Enter URL (e.g., chat.openai.com):');
+    if (!url || !url.trim()) return;
+
+    const cleanUrl = url.trim().replace(/^https?:\/\//, '').replace(/\/$/, '');
+    
+    if (this.customUrls.includes(cleanUrl)) {
+      this.showNotification('URL already exists', 'error');
+      return;
+    }
+
+    this.customUrls.push(cleanUrl);
+    await this.saveCustomUrls();
+    this.renderUrlList();
+    this.updateUrlCount();
+    this.showNotification('URL added successfully!', 'success');
+  }
+
+  async deleteCustomUrl(url) {
+    if (!confirm(`Remove ${url} from supported URLs?`)) return;
+
+    this.customUrls = this.customUrls.filter(u => u !== url);
+    await this.saveCustomUrls();
+    this.renderUrlList();
+    this.updateUrlCount();
+    this.showNotification('URL removed successfully!', 'success');
+  }
+
+  showUrlManager() {
+    document.getElementById('urlManager').style.display = 'block';
+    this.renderUrlList();
+  }
+
+  hideUrlManager() {
+    document.getElementById('urlManager').style.display = 'none';
+  }
+
+  updateUrlCount() {
+    const urlCount = document.getElementById('urlCount');
+    if (urlCount) {
+      urlCount.textContent = `(${this.customUrls.length} URLs)`;
+    }
   }
 }
 

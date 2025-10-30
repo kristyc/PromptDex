@@ -2,6 +2,7 @@
 <html>
 <head>
   <meta charset="utf-8">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
     * {
       box-sizing: border-box;
@@ -225,12 +226,12 @@
     }
     
     .prompt-action-btn.use {
-      background: #ea580c;
+      background: #14b8a6;
       color: white;
     }
     
     .prompt-action-btn.use:hover {
-      background: #dc2626;
+      background: #0d9488;
     }
     
     .empty-state {
@@ -347,22 +348,24 @@
 <body>
   <div class="container">
     <div class="header">
-      <div class="title">PromptDex</div>
-      <div style="display: flex; gap: 8px; align-items: center;">
-        <button id="expandBtn" style="background: none; border: none; color: #94a3b8; cursor: pointer; font-size: 16px; padding: 4px;" title="Full View">🔍</button>
-        <button id="settingsBtn" style="background: none; border: none; color: #94a3b8; cursor: pointer; font-size: 16px; padding: 4px;" title="Settings">⚙️</button>
+      <div style="display: flex; align-items: center; gap: 8px;">
         <img src="../icons/icon48.png" alt="PromptDex" style="width: 24px; height: 24px; opacity: 0.8;">
+        <div class="title">PromptDex</div>
+      </div>
+      <div style="display: flex; gap: 8px; align-items: center;">
+        <button id="expandBtn" style="background: none; border: none; color: #14b8a6; cursor: pointer; font-size: 16px; padding: 4px;" title="Full View"><i class="fas fa-expand"></i></button>
+        <button id="settingsBtn" style="background: none; border: none; color: #94a3b8; cursor: pointer; font-size: 16px; padding: 4px;" title="Settings"><i class="fas fa-cog"></i></button>
       </div>
     </div>
     
     <div style="padding: 0 0 16px 0; border-bottom: 1px solid #1e293b; margin-bottom: 16px;">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
         <div style="font-size: 11px; color: #e2e8f0;">
-          <div class="shortcut-guidance" style="margin-bottom: 4px; font-weight: 600; color: #f97316;">On ChatGPT/Claude: Press Ctrl+Shift+P</div>
-          <div style="color: #e2e8f0;">Right-click selected text to save as prompt</div>
+          <div class="shortcut-guidance" style="margin-bottom: 4px; font-weight: 600; color: #f97316;">On ChatGPT/Claude: Press <span style="color: #14b8a6;">Ctrl+Shift+P</span></div>
+          <div style="color: #e2e8f0;">Right-click selected text on pages to add prompts</div>
         </div>
         <button id="addPromptBtn" style="background: #ea580c; color: white; border: none; padding: 8px 12px; border-radius: 8px; font-weight: 600; font-size: 12px; cursor: pointer; white-space: nowrap;">
-          ➕ Add Prompt
+          <i class="fas fa-plus"></i> Add
         </button>
       </div>
     </div>
@@ -436,52 +439,85 @@ Examples:
   
   <!-- Settings Modal -->
   <div class="modal-overlay" id="settingsModal">
-    <div class="modal" style="max-width: 400px;">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-        <h3 class="modal-title" style="margin: 0;">Settings</h3>
-        <div style="display: flex; align-items: center; gap: 12px;">
-          <span style="font-size: 11px; color: #e2e8f0;">PromptDex v1.1</span>
+    <div class="modal" style="max-width: 420px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1px solid #334155;">
+        <h3 class="modal-title" style="margin: 0; font-size: 20px;">Settings</h3>
+        <div style="display: flex; align-items: center; gap: 16px;">
+          <span style="font-size: 12px; color: #94a3b8; background: #0f0f23; padding: 4px 8px; border-radius: 4px;">v1.1</span>
           <button id="closeSettings" style="background: none; border: none; color: #94a3b8; cursor: pointer; font-size: 24px; padding: 4px; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 4px; transition: all 0.2s;" onmouseover="this.style.background='#374151'; this.style.color='#e2e8f0';" onmouseout="this.style.background='none'; this.style.color='#94a3b8';">×</button>
         </div>
       </div>
       
       <!-- Shortcuts Section -->
-      <div style="margin-bottom: 16px;">
-        <h4 style="margin: 0 0 10px 0; color: #f97316; font-size: 14px; font-weight: 600;">⌨️ Shortcuts</h4>
-        <div style="background: #0f0f23; border: 1px solid #334155; border-radius: 6px; padding: 12px;">
-          <label style="display: block; margin-bottom: 8px; font-size: 13px; color: #e2e8f0;">Floating Picker:</label>
-          <input type="text" id="shortcutInput" style="width: 100%; padding: 8px 10px; border: 1px solid #334155; border-radius: 4px; background: #1e293b; color: #e2e8f0; font-size: 13px; margin-bottom: 10px; box-sizing: border-box;" placeholder="Ctrl+Shift+P" readonly>
-          <div style="display: flex; gap: 8px;">
-            <button class="modal-btn modal-btn-secondary" id="resetShortcut" style="flex: 1; font-size: 12px; padding: 6px 8px;">Reset</button>
-            <button class="modal-btn modal-btn-primary" id="recordShortcut" style="flex: 1; font-size: 12px; padding: 6px 8px;">Record</button>
+      <div style="margin-bottom: 20px;">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <i class="far fa-keyboard" style="font-size: 16px;"></i>
+            <span style="color: #f97316; font-size: 14px; font-weight: 600;">Shortcut</span>
+            <input type="text" id="shortcutInput" style="padding: 4px 8px; border: 1px solid #334155; border-radius: 4px; background: #0f0f23; color: #14b8a6; font-size: 13px; width: 100px; text-align: center;" placeholder="Ctrl+Shift+P" readonly>
           </div>
-          <p style="margin: 8px 0 0 0; font-size: 11px; color: #e2e8f0; line-height: 1.3;">Click Record then press your desired key combination</p>
+          <div style="display: flex; gap: 6px;">
+            <button id="recordShortcut" style="background: none; border: 1px solid #334155; color: #dc2626; padding: 6px; border-radius: 4px; font-size: 14px; cursor: pointer;" title="Record New"><i class="fas fa-record-vinyl"></i></button>
+            <button id="resetShortcut" style="background: none; border: 1px solid #334155; color: #e2e8f0; padding: 6px; border-radius: 4px; font-size: 14px; cursor: pointer;" title="Reset"><i class="fas fa-undo"></i></button>
+          </div>
         </div>
+        <p style="margin: 0; font-size: 12px; color: #94a3b8; padding-left: 24px;">Click record button, then press your desired key combination</p>
       </div>
       
       <!-- Backup Section -->
-      <div style="margin-bottom: 16px;">
-        <h4 style="margin: 0 0 10px 0; color: #14b8a6; font-size: 14px; font-weight: 600;">💾 Backup & Restore</h4>
-        <div style="background: #0f0f23; border: 1px solid #334155; border-radius: 6px; padding: 12px;">
-          <div style="display: flex; gap: 8px; margin-bottom: 8px;">
-            <button class="modal-btn modal-btn-primary" id="exportData" style="flex: 1; font-size: 12px; padding: 8px;">
-              📤 Export
-            </button>
-            <input type="file" id="importFile" accept=".json" style="display: none;">
-            <button class="modal-btn modal-btn-secondary" id="importData" style="flex: 1; font-size: 12px; padding: 8px;">
-              📥 Import
-            </button>
+      <div style="margin-bottom: 20px;">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <i class="far fa-hdd" style="font-size: 16px;"></i>
+            <span style="color: #f97316; font-size: 14px; font-weight: 600;">Backup & Restore</span>
           </div>
-          <p style="margin: 0; font-size: 11px; color: #e2e8f0; line-height: 1.3;">Export/import your prompts and categories as JSON files</p>
+          <div style="display: flex; gap: 6px;">
+            <button id="exportData" style="background: none; border: 1px solid #334155; color: #e2e8f0; padding: 6px; border-radius: 4px; font-size: 14px; cursor: pointer;" title="Export"><i class="fas fa-download"></i></button>
+            <input type="file" id="importFile" accept=".json" style="display: none;">
+            <button id="importData" style="background: none; border: 1px solid #334155; color: #e2e8f0; padding: 6px; border-radius: 4px; font-size: 14px; cursor: pointer;" title="Import"><i class="fas fa-upload"></i></button>
+          </div>
         </div>
+        <p style="margin: 0; font-size: 12px; color: #94a3b8; padding-left: 24px;">Export prompts to JSON file for backup, or import from another device</p>
       </div>
       
-      <!-- Bottom tip section -->
-      <div style="background: #0f0f23; border: 1px solid #334155; border-radius: 6px; padding: 10px; margin-bottom: 16px;">
-        <p style="margin: 0; font-size: 11px; color: #e2e8f0; line-height: 1.3; text-align: center;">
-          💡 <strong style="color: #f97316;">Tip:</strong> Export regularly to backup your prompts safely
-        </p>
+      <!-- Cleanup Section -->
+      <div style="margin-bottom: 20px;">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <i class="fas fa-broom" style="font-size: 16px;"></i>
+            <span style="color: #f97316; font-size: 14px; font-weight: 600;">Variable Cleanup</span>
+          </div>
+          <div style="display: flex; gap: 6px;">
+            <button id="cleanupBrackets" style="background: none; border: 1px solid #334155; color: #e2e8f0; padding: 6px 12px; border-radius: 4px; font-size: 13px; cursor: pointer;" title="Fix Variables">Fix All</button>
+          </div>
+        </div>
+        <p style="margin: 0; font-size: 12px; color: #94a3b8; padding-left: 24px;">Convert {{variable}} and [single] to {variable}. Preserves [opt1/opt2/opt3] choices</p>
       </div>
+      
+      <!-- URL Management Section -->
+      <div style="margin-bottom: 20px;">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <i class="fas fa-globe" style="font-size: 16px;"></i>
+            <span style="color: #f97316; font-size: 14px; font-weight: 600;">Supported URLs</span>
+            <span id="urlCount" style="color: #94a3b8; font-size: 12px;">(0 URLs)</span>
+          </div>
+          <div style="display: flex; gap: 6px;">
+            <button id="editUrls" style="background: none; border: 1px solid #334155; color: #e2e8f0; padding: 6px; border-radius: 4px; font-size: 14px; cursor: pointer;" title="Edit URLs"><i class="far fa-edit"></i></button>
+          </div>
+        </div>
+        <div id="urlManager" style="display: none;">
+          <div id="urlList" style="max-height: 120px; overflow-y: auto; margin-bottom: 8px;">
+            <!-- URLs will be populated here -->
+          </div>
+          <div style="display: flex; gap: 6px; margin-bottom: 8px;">
+            <button id="addUrl" style="background: #ea580c; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 12px; cursor: pointer;"><i class="fas fa-plus"></i> Add URL</button>
+            <button id="closeUrlManager" style="background: #374151; color: #d1d5db; border: 1px solid #4b5563; border-radius: 4px; padding: 6px 12px; font-size: 12px; cursor: pointer;">Done</button>
+          </div>
+        </div>
+        <p style="margin: 0; font-size: 12px; color: #94a3b8; padding-left: 24px;">URLs where the prompt picker will be available</p>
+      </div>
+      
       
     </div>
   </div>

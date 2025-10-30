@@ -106,7 +106,7 @@ class EmbeddedPromptDex {
         </h3>
         <div style="display: flex; gap: 8px; align-items: center;">
           <button id="promptdex-add-btn" style="background: #ea580c; color: white; border: none; padding: 4px 8px; border-radius: 4px; font-size: 12px; cursor: pointer; font-weight: 600;">
-            ➕ Add
+            <i class="fas fa-plus"></i> Add
           </button>
           <button id="promptdex-close-btn" style="background: none; border: none; color: #94a3b8; cursor: pointer; font-size: 18px; padding: 0; width: 24px; height: 24px;">
             ×
@@ -281,15 +281,15 @@ class EmbeddedPromptDex {
         background: #1e293b;
         position: relative;
       ">
-        <button class="promptdex-edit-btn" data-prompt-id="${prompt.id}" style="position: absolute; top: 8px; right: 8px; background: #ea580c; color: white; border: none; padding: 4px; border-radius: 4px; font-size: 12px; cursor: pointer; z-index: 2;">✏️</button>
+        <button class="promptdex-edit-btn" data-prompt-id="${prompt.id}" style="position: absolute; top: 8px; right: 8px; background: #ea580c; color: white; border: none; padding: 4px; border-radius: 4px; font-size: 12px; cursor: pointer; z-index: 2;"><i class="far fa-edit"></i></button>
         <div style="font-weight: 600; margin-bottom: 4px; font-size: 14px; color: #f1f5f9; padding-right: 32px;">
           ${this.escapeHtml(prompt.title)}
         </div>
         <div style="font-size: 12px; color: #94a3b8; line-height: 1.4; margin-bottom: 6px; padding-right: 32px;">
           ${this.escapeHtml(this.truncate(prompt.content, 80))}
-          ${this.hasVariables(prompt.content) ? '<span style="color: #f97316; font-weight: 600; margin-left: 4px;">📝 Has variables</span>' : ''}
+          ${this.hasVariables(prompt.content) ? '<span style="color: #f97316; font-weight: 600; margin-left: 4px;"><i class="fas fa-code"></i> Has variables</span>' : ''}
         </div>
-        <button class="promptdex-delete-btn" data-prompt-id="${prompt.id}" style="position: absolute; bottom: 8px; right: 8px; background: #ea580c; color: white; border: none; padding: 4px; border-radius: 4px; font-size: 12px; cursor: pointer; z-index: 2;">🗑️</button>
+        <button class="promptdex-delete-btn" data-prompt-id="${prompt.id}" style="position: absolute; bottom: 8px; right: 8px; background: #ea580c; color: white; border: none; padding: 4px; border-radius: 4px; font-size: 12px; cursor: pointer; z-index: 2;"><i class="far fa-trash-alt"></i></button>
       </div>
     `).join('');
 

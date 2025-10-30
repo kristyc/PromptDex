@@ -8,12 +8,16 @@ class FullViewManager {
     this.editingPromptId = null;
     this.currentShortcut = 'Ctrl+Shift+P';
     this.isRecordingShortcut = false;
+    this.draftData = null;
+    this.lastSelectedCategory = 'general';
     
     this.init();
   }
 
   async init() {
     await this.loadData();
+    await this.loadDraftData();
+    await this.loadLastSelectedCategory();
     this.setupEventListeners();
     this.renderStats();
     this.renderCategoryFilters();
@@ -97,11 +101,22 @@ class FullViewManager {
     document.getElementById('recordShortcutModal').addEventListener('click', () => this.startRecordingShortcut());
     document.getElementById('resetShortcutModal').addEventListener('click', () => this.resetShortcut());
 
-    // Auto-predict title when content changes
+    // Auto-predict title when content changes and save draft
     document.getElementById('promptContent').addEventListener('input', () => {
       if (!document.getElementById('promptTitle').value.trim()) {
         this.predictTitle();
       }
+      this.saveDraftData();
+    });
+    
+    // Save draft when title changes
+    document.getElementById('promptTitle').addEventListener('input', () => {
+      this.saveDraftData();
+    });
+    
+    // Save draft when category changes
+    document.getElementById('promptCategory').addEventListener('change', () => {
+      this.saveDraftData();
     });
   }
 
@@ -410,9 +425,21 @@ class FullViewManager {
     } else {
       modalTitle.textContent = 'Add New Prompt';
       saveBtn.textContent = 'Save Prompt';
-      document.getElementById('promptContent').value = '';
-      document.getElementById('promptTitle').value = '';
-      document.getElementById('promptCategory').value = 'general';
+      
+      if (this.draftData && (this.draftData.content || this.draftData.title)) {
+        // Restore draft data
+        document.getElementById('promptContent').value = this.draftData.content || '';
+        document.getElementById('promptTitle').value = this.draftData.title || '';
+        document.getElementById('promptCategory').value = this.draftData.category || this.lastSelectedCategory;
+        
+        // Show indication that draft was restored
+        this.showNotification('📝 Draft restored from previous session', 'info');
+      } else {
+        // No draft, use defaults
+        document.getElementById('promptContent').value = '';
+        document.getElementById('promptTitle').value = '';
+        document.getElementById('promptCategory').value = this.lastSelectedCategory;
+      }
       this.editingPromptId = null;
     }
 
@@ -423,6 +450,11 @@ class FullViewManager {
 
   hidePromptModal() {
     document.getElementById('promptModal').style.display = 'none';
+    
+    // Save current form data as draft if not editing
+    if (!this.editingPromptId) {
+      this.saveDraftData();
+    }
   }
 
   async savePrompt() {
@@ -464,6 +496,15 @@ class FullViewManager {
 
     const saved = await this.savePrompts();
     if (saved) {
+      // Remember the last selected category for new prompts
+      if (!this.editingPromptId) {
+        this.lastSelectedCategory = category;
+        await this.saveLastSelectedCategory();
+      }
+      
+      // Clear draft data on successful save
+      await this.clearDraftData();
+      
       this.hidePromptModal();
       this.renderStats();
       this.renderCategoryFilters();
@@ -602,22 +643,59 @@ class FullViewManager {
         return;
       }
 
-      // Ask for confirmation
+      // Calculate import stats
       const promptCount = data.prompts ? data.prompts.length : 0;
       const categoryCount = data.categories ? data.categories.length : 0;
       
-      if (!confirm(`Import ${promptCount} prompts and ${categoryCount} categories? This will replace your current data.`)) {
+      if (!confirm(`Import ${promptCount} prompts and ${categoryCount} categories? New prompts will be added to your existing collection (duplicates will be skipped).`)) {
         return;
       }
 
-      // Import the data
-      if (data.prompts) {
-        this.prompts = data.prompts;
+      let newPromptsAdded = 0;
+      let duplicatesSkipped = 0;
+      let newCategoriesAdded = 0;
+
+      // Import prompts - merge instead of replace
+      if (data.prompts && data.prompts.length > 0) {
+        const existingTitles = new Set(this.prompts.map(p => p.title.toLowerCase().trim()));
+        
+        data.prompts.forEach(importedPrompt => {
+          // Check for duplicates based on title
+          const titleKey = importedPrompt.title.toLowerCase().trim();
+          if (!existingTitles.has(titleKey)) {
+            // Ensure the prompt has a unique ID
+            const newPrompt = {
+              ...importedPrompt,
+              id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+              importedAt: new Date().toISOString()
+            };
+            this.prompts.push(newPrompt);
+            existingTitles.add(titleKey);
+            newPromptsAdded++;
+          } else {
+            duplicatesSkipped++;
+          }
+        });
+        
         await this.savePrompts();
       }
 
-      if (data.categories) {
-        this.categories = data.categories;
+      // Import categories - merge instead of replace
+      if (data.categories && data.categories.length > 0) {
+        const existingCategories = new Set(this.categories.map(c => c.toLowerCase().trim()));
+        
+        data.categories.forEach(category => {
+          // Skip if category is empty or invalid
+          if (!category || typeof category !== 'string') return;
+          
+          const categoryKey = category.toLowerCase().trim();
+          if (categoryKey && !existingCategories.has(categoryKey)) {
+            this.categories.push(category.trim());
+            existingCategories.add(categoryKey);
+            newCategoriesAdded++;
+          }
+        });
+        
         await chrome.storage.local.set({customCategories: this.categories});
       }
 
@@ -627,7 +705,16 @@ class FullViewManager {
       this.renderPrompts();
       this.clearSelection();
 
-      this.showNotification(`Successfully imported ${promptCount} prompts and ${categoryCount} categories!`, 'success');
+      // Show detailed success message
+      let message = `Import completed! Added ${newPromptsAdded} new prompts`;
+      if (newCategoriesAdded > 0) {
+        message += ` and ${newCategoriesAdded} new categories`;
+      }
+      if (duplicatesSkipped > 0) {
+        message += `. Skipped ${duplicatesSkipped} duplicate prompts`;
+      }
+      
+      this.showNotification(message, 'success');
       this.hideSettingsModal();
 
     } catch (error) {
@@ -766,6 +853,78 @@ class FullViewManager {
         }
       }, 300);
     }, 3000);
+  }
+
+  // Draft Data Management
+  async loadDraftData() {
+    try {
+      const result = await chrome.storage.local.get(['promptDraftDataFullview']);
+      this.draftData = result.promptDraftDataFullview || null;
+      console.log('Loaded fullview draft data:', this.draftData);
+    } catch (error) {
+      console.error('Failed to load fullview draft data:', error);
+      this.draftData = null;
+    }
+  }
+
+  async saveDraftData() {
+    try {
+      // Only save if modal is open and we're not editing
+      const modal = document.getElementById('promptModal');
+      if (modal.style.display !== 'flex' || this.editingPromptId) {
+        return;
+      }
+
+      const content = document.getElementById('promptContent').value;
+      const title = document.getElementById('promptTitle').value;
+      const category = document.getElementById('promptCategory').value;
+
+      // Only save if there's actual content
+      if (content.trim() || title.trim()) {
+        this.draftData = {
+          content: content,
+          title: title,
+          category: category,
+          timestamp: new Date().toISOString()
+        };
+        
+        await chrome.storage.local.set({promptDraftDataFullview: this.draftData});
+        console.log('Saved fullview draft data:', this.draftData);
+      }
+    } catch (error) {
+      console.error('Failed to save fullview draft data:', error);
+    }
+  }
+
+  async clearDraftData() {
+    try {
+      this.draftData = null;
+      await chrome.storage.local.remove(['promptDraftDataFullview']);
+      console.log('Cleared fullview draft data');
+    } catch (error) {
+      console.error('Failed to clear fullview draft data:', error);
+    }
+  }
+
+  // Last Selected Category Management
+  async loadLastSelectedCategory() {
+    try {
+      const result = await chrome.storage.local.get(['lastSelectedCategory']);
+      this.lastSelectedCategory = result.lastSelectedCategory || 'general';
+      console.log('Loaded last selected category:', this.lastSelectedCategory);
+    } catch (error) {
+      console.error('Failed to load last selected category:', error);
+      this.lastSelectedCategory = 'general';
+    }
+  }
+
+  async saveLastSelectedCategory() {
+    try {
+      await chrome.storage.local.set({lastSelectedCategory: this.lastSelectedCategory});
+      console.log('Saved last selected category:', this.lastSelectedCategory);
+    } catch (error) {
+      console.error('Failed to save last selected category:', error);
+    }
   }
 }
 
