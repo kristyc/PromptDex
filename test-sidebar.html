@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Test PromptDex Sidebar</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      background: #f0f0f0;
+    }
+    .test-button {
+      background: #ea580c;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-size: 16px;
+      cursor: pointer;
+      margin: 10px;
+    }
+    .test-button:hover {
+      background: #dc2626;
+    }
+    .info {
+      background: white;
+      padding: 15px;
+      border-radius: 8px;
+      margin: 10px 0;
+      border-left: 4px solid #14b8a6;
+    }
+  </style>
+</head>
+<body>
+  <h1>PromptDex Sidebar Test</h1>
+  
+  <div class="info">
+    <p><strong>Instructions:</strong></p>
+    <ol>
+      <li>Load this page in Chrome</li>
+      <li>Click the "Test Open Sidebar" button</li>
+      <li>Check the console for any errors</li>
+      <li>The sidebar should open on the right</li>
+    </ol>
+  </div>
+  
+  <button class="test-button" onclick="testOpenSidebar()">Test Open Sidebar</button>
+  <button class="test-button" onclick="testCheckAPI()">Check API Availability</button>
+  
+  <div id="output"></div>
+
+  <script>
+    function log(message) {
+      const output = document.getElementById('output');
+      output.innerHTML += '<div style="margin: 5px 0; padding: 5px; background: white; border-radius: 4px;">' + message + '</div>';
+      console.log(message);
+    }
+
+    function testCheckAPI() {
+      log('Checking Chrome Side Panel API...');
+      
+      if (typeof chrome === 'undefined') {
+        log('❌ Chrome APIs not available (are you using this as an extension?)');
+        return;
+      }
+      
+      if (!chrome.sidePanel) {
+        log('❌ chrome.sidePanel API not available. Check Chrome version (need 114+)');
+        return;
+      }
+      
+      log('✅ chrome.sidePanel API is available');
+      
+      if (chrome.sidePanel.setOptions) {
+        log('✅ setOptions method available');
+      }
+      
+      if (chrome.sidePanel.open) {
+        log('✅ open method available');
+      }
+      
+      if (chrome.sidePanel.setPanelBehavior) {
+        log('✅ setPanelBehavior method available');
+      }
+    }
+
+    async function testOpenSidebar() {
+      log('Testing sidebar opening...');
+      
+      try {
+        // First check if API is available
+        if (typeof chrome === 'undefined' || !chrome.sidePanel) {
+          log('❌ Chrome Side Panel API not available');
+          return;
+        }
+        
+        // Try to get current window
+        const [tab] = await chrome.tabs.query({active: true, currentWindow: true});
+        log('Current tab: ' + tab.url);
+        
+        // Try to open sidebar
+        await chrome.sidePanel.open({ windowId: tab.windowId });
+        log('✅ Sidebar opened successfully!');
+        
+      } catch (error) {
+        log('❌ Error opening sidebar: ' + error.message);
+        console.error('Full error:', error);
+      }
+    }
+
+    // Auto-check API on load
+    document.addEventListener('DOMContentLoaded', () => {
+      testCheckAPI();
+    });
+  </script>
+</body>
+</html>

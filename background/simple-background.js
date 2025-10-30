@@ -57,19 +57,27 @@ class SimpleBackground {
 
   setupSidePanel() {
     try {
-      // Set up side panel to open when extension icon is clicked
-      chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true })
-        .then(() => {
-          console.log('Side panel behavior set successfully');
-        })
-        .catch((error) => {
-          console.error('Error setting side panel behavior:', error);
-        });
+      console.log('Setting up side panel...');
+      
+      // First, ensure the side panel exists and is enabled
+      chrome.sidePanel.setOptions({
+        path: 'sidebar/sidebar.html',
+        enabled: true
+      }).then(() => {
+        console.log('Side panel options set successfully');
+        
+        // Then set up the behavior to open on action click
+        return chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });
+      }).then(() => {
+        console.log('Side panel behavior set successfully');
+      }).catch((error) => {
+        console.error('Error in side panel setup:', error);
+      });
 
       // Handle action clicks (backup in case setPanelBehavior doesn't work)
       chrome.action.onClicked.addListener(async (tab) => {
         try {
-          console.log('Extension icon clicked, opening side panel');
+          console.log('Extension icon clicked, opening side panel for window:', tab.windowId);
           await chrome.sidePanel.open({ windowId: tab.windowId });
           console.log('Side panel opened successfully');
         } catch (error) {
