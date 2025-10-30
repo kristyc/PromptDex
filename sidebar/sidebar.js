@@ -132,6 +132,12 @@ class SidebarManager {
     document.getElementById('promptTitle').addEventListener('input', () => this.saveDraftData());
     document.getElementById('promptCategory').addEventListener('change', () => this.saveDraftData());
 
+    // Empty state add button
+    const emptyStateAddBtn = document.getElementById('emptyStateAddBtn');
+    if (emptyStateAddBtn) {
+      emptyStateAddBtn.addEventListener('click', () => this.showAddPromptModal());
+    }
+
     // Close modals when clicking outside
     document.addEventListener('click', (e) => {
       if (e.target.classList.contains('modal-overlay')) {
@@ -234,7 +240,7 @@ class SidebarManager {
           <h3>${this.prompts.length === 0 ? 'No prompts yet' : 'No matches found'}</h3>
           <p>${this.prompts.length === 0 ? 'Add your first prompt to get started!' : 'Try different search terms or categories'}</p>
           ${this.prompts.length === 0 ? `
-            <button class="quick-action-btn" onclick="document.getElementById('addPromptBtn').click()">
+            <button class="quick-action-btn" id="emptyStateAddBtn2">
               <i class="fas fa-plus"></i> Add Your First Prompt
             </button>
           ` : ''}
@@ -252,13 +258,13 @@ class SidebarManager {
             ${prompt.category}
           </span>
           <div class="prompt-actions">
-            <button class="prompt-action-btn use" onclick="sidebarManager.usePrompt('${prompt.id}')">
+            <button class="prompt-action-btn use" data-action="use" data-prompt-id="${prompt.id}">
               <i class="fas fa-play"></i> USE
             </button>
-            <button class="prompt-action-btn edit" onclick="sidebarManager.editPrompt('${prompt.id}')">
+            <button class="prompt-action-btn edit" data-action="edit" data-prompt-id="${prompt.id}">
               <i class="far fa-edit"></i>
             </button>
-            <button class="prompt-action-btn delete" onclick="sidebarManager.deletePrompt('${prompt.id}')">
+            <button class="prompt-action-btn delete" data-action="delete" data-prompt-id="${prompt.id}">
               <i class="far fa-trash-alt"></i>
             </button>
           </div>
@@ -274,6 +280,33 @@ class SidebarManager {
         }
       });
     });
+
+    // Add event listeners for action buttons
+    document.querySelectorAll('.prompt-action-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const action = btn.dataset.action;
+        const promptId = btn.dataset.promptId;
+        
+        switch (action) {
+          case 'use':
+            this.usePrompt(promptId);
+            break;
+          case 'edit':
+            this.editPrompt(promptId);
+            break;
+          case 'delete':
+            this.deletePrompt(promptId);
+            break;
+        }
+      });
+    });
+
+    // Add event listener for empty state button if it exists
+    const emptyStateAddBtn2 = document.getElementById('emptyStateAddBtn2');
+    if (emptyStateAddBtn2) {
+      emptyStateAddBtn2.addEventListener('click', () => this.showAddPromptModal());
+    }
   }
 
   getCategoryColor(category) {
@@ -519,9 +552,16 @@ class SidebarManager {
     categoryList.innerHTML = this.categories.map(category => `
       <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px; background: #0f0f23; border: 1px solid #334155; border-radius: 6px; margin-bottom: 6px;">
         <span style="color: #e2e8f0;">${category.charAt(0).toUpperCase() + category.slice(1)}</span>
-        <button onclick="sidebarManager.deleteCategory('${category}')" style="background: #dc2626; color: white; border: none; padding: 4px 8px; border-radius: 4px; font-size: 11px; cursor: pointer;">Delete</button>
+        <button class="delete-category-btn" data-category="${category}" style="background: #dc2626; color: white; border: none; padding: 4px 8px; border-radius: 4px; font-size: 11px; cursor: pointer;">Delete</button>
       </div>
     `).join('');
+    
+    // Add event listeners to delete buttons
+    document.querySelectorAll('.delete-category-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        this.deleteCategory(btn.dataset.category);
+      });
+    });
   }
 
   async addCategory() {

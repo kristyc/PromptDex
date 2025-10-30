@@ -43,8 +43,8 @@
     </ol>
   </div>
   
-  <button class="test-button" onclick="testOpenSidebar()">Test Open Sidebar</button>
-  <button class="test-button" onclick="testCheckAPI()">Check API Availability</button>
+  <button class="test-button" id="testOpenBtn">Test Open Sidebar</button>
+  <button class="test-button" id="testCheckBtn">Check API Availability</button>
   
   <div id="output"></div>
 
@@ -110,6 +110,10 @@
     // Auto-check API on load
     document.addEventListener('DOMContentLoaded', () => {
       testCheckAPI();
+      
+      // Add event listeners
+      document.getElementById('testOpenBtn').addEventListener('click', testOpenSidebar);
+      document.getElementById('testCheckBtn').addEventListener('click', testCheckAPI);
     });
   </script>
 </body>

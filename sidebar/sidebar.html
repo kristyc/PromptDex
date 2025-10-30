@@ -431,6 +431,27 @@
     .modal-btn-secondary:hover {
       background: #4b5563;
     }
+    
+    .close-btn {
+      background: none;
+      border: none;
+      color: #94a3b8;
+      cursor: pointer;
+      font-size: 24px;
+      padding: 4px;
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 4px;
+      transition: all 0.2s;
+    }
+    
+    .close-btn:hover {
+      background: #374151;
+      color: #e2e8f0;
+    }
   </style>
 </head>
 <body>
@@ -475,7 +496,7 @@
         <div class="empty-state">
           <h3>Welcome to PromptDex Sidebar</h3>
           <p>Your prompts are always accessible while browsing!</p>
-          <button class="quick-action-btn" onclick="document.getElementById('addPromptBtn').click()">
+          <button class="quick-action-btn" id="emptyStateAddBtn">
             <i class="fas fa-plus"></i> Add Your First Prompt
           </button>
         </div>
@@ -541,7 +562,7 @@ Examples:
         <h3 class="modal-title" style="margin: 0; font-size: 20px;">Settings</h3>
         <div style="display: flex; align-items: center; gap: 16px;">
           <span style="font-size: 12px; color: #94a3b8; background: #0f0f23; padding: 4px 8px; border-radius: 4px;">v1.1</span>
-          <button id="closeSettings" style="background: none; border: none; color: #94a3b8; cursor: pointer; font-size: 24px; padding: 4px; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 4px; transition: all 0.2s;" onmouseover="this.style.background='#374151'; this.style.color='#e2e8f0';" onmouseout="this.style.background='none'; this.style.color='#94a3b8';">×</button>
+          <button id="closeSettings" class="close-btn">×</button>
         </div>
       </div>
       
