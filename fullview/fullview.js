@@ -224,7 +224,7 @@ class FullViewManager {
           <div class="prompt-header">
             <div>
               <div class="prompt-title">${this.escapeHtml(prompt.title)}</div>
-              <span class="prompt-category" style="background: ${this.getCategoryColor(prompt.category)}; color: white;">${prompt.category}</span>
+              <span class="prompt-category" style="background: ${this.getCategoryColor(prompt.category)}; color: #000000;">${prompt.category}</span>
             </div>
           </div>
           

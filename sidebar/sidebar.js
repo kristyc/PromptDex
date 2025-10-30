@@ -254,7 +254,7 @@ class SidebarManager {
         <div class="prompt-title">${this.escapeHtml(prompt.title)}</div>
         <div class="prompt-preview">${this.escapeHtml(this.truncate(prompt.content, 100))}</div>
         <div class="prompt-meta">
-          <span class="prompt-category" style="background: ${this.getCategoryColor(prompt.category)}; color: white;">
+          <span class="prompt-category" style="background: ${this.getCategoryColor(prompt.category)}; color: #000000;">
             ${prompt.category}
           </span>
           <div class="prompt-actions">
