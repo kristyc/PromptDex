@@ -21,6 +21,7 @@ class SimpleBackground {
 
   init() {
     this.setupContextMenus();
+    this.setupSidePanel();
   }
 
   setupContextMenus() {
@@ -54,6 +55,36 @@ class SimpleBackground {
     }
   }
 
+  setupSidePanel() {
+    try {
+      // Set up side panel to open when extension icon is clicked
+      chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true })
+        .then(() => {
+          console.log('Side panel behavior set successfully');
+        })
+        .catch((error) => {
+          console.error('Error setting side panel behavior:', error);
+        });
+
+      // Handle action clicks (backup in case setPanelBehavior doesn't work)
+      chrome.action.onClicked.addListener(async (tab) => {
+        try {
+          console.log('Extension icon clicked, opening side panel');
+          await chrome.sidePanel.open({ windowId: tab.windowId });
+          console.log('Side panel opened successfully');
+        } catch (error) {
+          console.error('Error opening side panel:', error);
+          // Fallback: show notification
+          this.showNotification('Unable to open sidebar. Please try reloading the extension.', 'error');
+        }
+      });
+
+      console.log('Side panel setup complete');
+    } catch (error) {
+      console.error('Error setting up side panel:', error);
+    }
+  }
+
   async handleSaveSelectedText(selectedText, tab) {
     try {
       console.log('Preparing selected text for prompt creation:', selectedText);
@@ -73,29 +104,18 @@ class SimpleBackground {
         fromRightClick: true
       };
       
-      // Store in chrome.storage so popup can access it
+      // Store in chrome.storage so sidebar can access it
       await chrome.storage.local.set({pendingRightClickPrompt: promptData});
       
-      // Try different approaches based on browser
-      if (this.isVivaldi) {
-        console.log('Vivaldi detected, using alternative popup method');
-        
-        // For Vivaldi, show a notification and let user manually open
-        this.showNotification('✅ Text saved! Click the PromptDex icon to add it as a prompt.', 'info');
-        
-        // Optional: Try opening popup in a new tab as complete fallback
-        // chrome.tabs.create({ url: chrome.runtime.getURL('popup/popup.html') });
-      } else {
-        // Try standard popup opening for other browsers
-        try {
-          await chrome.action.openPopup();
-          console.log('Successfully opened popup via chrome.action.openPopup');
-        } catch (error) {
-          console.log('chrome.action.openPopup failed:', error.message);
-          
-          // Fallback notification for any browser where popup fails
-          this.showNotification('✅ Text saved! Click the PromptDex icon to add it as a prompt.', 'info');
-        }
+      // Try to open the sidebar with the prepared data
+      try {
+        await chrome.sidePanel.open({ windowId: tab.windowId });
+        console.log('Successfully opened sidebar with prepared prompt data');
+        this.showNotification('✅ Text saved! Sidebar opened with your prompt.', 'success');
+      } catch (error) {
+        console.log('Sidebar opening failed:', error.message);
+        // Fallback notification
+        this.showNotification('✅ Text saved! Click the PromptDex icon to open sidebar and add it as a prompt.', 'info');
       }
       
       console.log('Prepared right-click prompt data for popup');
