@@ -165,6 +165,30 @@
       font-size: 14px;
     }
     
+    .category-pill {
+      padding: 8px 16px;
+      border: 1px solid #334155;
+      border-radius: 20px;
+      background: #1e293b;
+      color: #94a3b8;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 600;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+    
+    .category-pill:hover:not(.active) {
+      background: #334155;
+      border-color: #475569;
+    }
+    
+    .category-pill.active {
+      background: #14b8a6;
+      color: white;
+      border-color: #14b8a6;
+    }
+    
     .bulk-actions {
       background: #1e293b;
       border: 1px solid #334155;
@@ -494,12 +518,6 @@
         </div>
       </div>
       <div class="header-actions">
-        <button class="btn btn-secondary" id="openChatGPTBtn" title="Open ChatGPT">
-          <i class="fas fa-robot"></i> ChatGPT
-        </button>
-        <button class="btn btn-secondary" id="openClaudeBtn" title="Open Claude">
-          <i class="fas fa-brain"></i> Claude
-        </button>
         <button class="btn btn-primary" id="addPromptBtn">
           <i class="fas fa-plus"></i> Add Prompt
         </button>
@@ -534,12 +552,14 @@
           <input type="text" id="searchInput" class="search-input" placeholder="Search prompts by title or content...">
         </div>
         <div class="filter-group">
-          <select id="categoryFilter" class="filter-select">
-            <option value="all">All Categories</option>
-          </select>
           <button class="btn btn-secondary" id="selectAllBtn">Select All</button>
           <button class="btn btn-secondary" id="clearSelectionBtn">Clear</button>
         </div>
+      </div>
+      
+      <!-- Category Pills -->
+      <div class="category-pills" id="categoryPills" style="display: flex; gap: 8px; margin-top: 16px; flex-wrap: wrap;">
+        <div class="category-pill active" data-category="all" style="padding: 8px 16px; border: 1px solid #334155; border-radius: 20px; background: #14b8a6; color: white; cursor: pointer; font-size: 12px; font-weight: 600; transition: all 0.2s;">All</div>
       </div>
     </div>
 
@@ -633,6 +653,37 @@ Examples:
             </button>
           </div>
           <p style="margin: 0; font-size: 11px; color: #e2e8f0; line-height: 1.3;">Export/import your prompts and categories as JSON files</p>
+        </div>
+      </div>
+      
+      <!-- Variable Cleanup Section -->
+      <div style="margin-bottom: 16px;">
+        <h4 style="margin: 0 0 10px 0; color: #f97316; font-size: 14px; font-weight: 600;"><i class="fas fa-broom"></i> Variable Cleanup</h4>
+        <div style="background: #0f0f23; border: 1px solid #334155; border-radius: 6px; padding: 12px;">
+          <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+            <button class="btn btn-secondary" id="cleanupBracketsModal" style="flex: 1; font-size: 11px; padding: 8px;">Fix All Variables</button>
+          </div>
+          <p style="margin: 0; font-size: 11px; color: #e2e8f0; line-height: 1.3;">Convert {{variable}} and [single] to {variable}. Preserves [opt1/opt2/opt3] choices</p>
+        </div>
+      </div>
+      
+      <!-- URL Management Section -->
+      <div style="margin-bottom: 16px;">
+        <h4 style="margin: 0 0 10px 0; color: #f97316; font-size: 14px; font-weight: 600;"><i class="fas fa-globe"></i> Supported URLs <span id="urlCountModal" style="color: #94a3b8; font-size: 11px;">(0 URLs)</span></h4>
+        <div style="background: #0f0f23; border: 1px solid #334155; border-radius: 6px; padding: 12px;">
+          <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+            <button class="btn btn-secondary" id="editUrlsModal" style="flex: 1; font-size: 11px; padding: 8px;">Edit URLs</button>
+          </div>
+          <div id="urlManagerModal" style="display: none;">
+            <div id="urlListModal" style="max-height: 120px; overflow-y: auto; margin-bottom: 8px;">
+              <!-- URLs will be populated here -->
+            </div>
+            <div style="display: flex; gap: 6px; margin-bottom: 8px;">
+              <button class="btn btn-primary" id="addUrlModal" style="font-size: 11px; padding: 6px 12px;"><i class="fas fa-plus"></i> Add URL</button>
+              <button class="btn btn-secondary" id="closeUrlManagerModal" style="font-size: 11px; padding: 6px 12px;">Done</button>
+            </div>
+          </div>
+          <p style="margin: 0; font-size: 11px; color: #e2e8f0; line-height: 1.3;">URLs where the prompt picker will be available</p>
         </div>
       </div>
       

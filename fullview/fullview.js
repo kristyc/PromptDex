@@ -18,6 +18,7 @@ class FullViewManager {
     await this.loadData();
     await this.loadDraftData();
     await this.loadLastSelectedCategory();
+    await this.loadCustomUrls();
     this.setupEventListeners();
     this.renderStats();
     this.renderCategoryFilters();
@@ -54,8 +55,6 @@ class FullViewManager {
     // Header actions
     document.getElementById('addPromptBtn').addEventListener('click', () => this.showPromptModal());
     document.getElementById('settingsBtn').addEventListener('click', () => this.showSettingsModal());
-    document.getElementById('openChatGPTBtn').addEventListener('click', () => this.openChatGPT());
-    document.getElementById('openClaudeBtn').addEventListener('click', () => this.openClaude());
 
     // Search and filters
     document.getElementById('searchInput').addEventListener('input', (e) => {
@@ -63,10 +62,7 @@ class FullViewManager {
       this.renderPrompts();
     });
 
-    document.getElementById('categoryFilter').addEventListener('change', (e) => {
-      this.currentFilter = e.target.value;
-      this.renderPrompts();
-    });
+    // Category filter is now handled by pills in renderCategoryFilters()
 
     // Selection controls
     document.getElementById('selectAllBtn').addEventListener('click', () => this.selectAll());
@@ -100,6 +96,10 @@ class FullViewManager {
     document.getElementById('importFileModal').addEventListener('change', (e) => this.importData(e));
     document.getElementById('recordShortcutModal').addEventListener('click', () => this.startRecordingShortcut());
     document.getElementById('resetShortcutModal').addEventListener('click', () => this.resetShortcut());
+    document.getElementById('cleanupBracketsModal').addEventListener('click', () => this.cleanupAllVariableFormats());
+    document.getElementById('editUrlsModal').addEventListener('click', () => this.toggleUrlManager());
+    document.getElementById('addUrlModal').addEventListener('click', () => this.showAddUrlPrompt());
+    document.getElementById('closeUrlManagerModal').addEventListener('click', () => this.hideUrlManager());
 
     // Auto-predict title when content changes and save draft
     document.getElementById('promptContent').addEventListener('input', () => {
@@ -131,19 +131,31 @@ class FullViewManager {
   }
 
   renderCategoryFilters() {
-    const categoryFilter = document.getElementById('categoryFilter');
+    const categoryPills = document.getElementById('categoryPills');
     const bulkCategorySelect = document.getElementById('bulkCategorySelect');
 
     // Get unique categories from prompts
     const usedCategories = [...new Set(this.prompts.map(p => p.category))];
     
-    // Category filter dropdown
-    categoryFilter.innerHTML = '<option value="all">All Categories</option>';
+    // Category filter pills
+    categoryPills.innerHTML = '';
+    
+    // Add "All" pill
+    const allPill = document.createElement('div');
+    allPill.className = `category-pill ${this.currentFilter === 'all' ? 'active' : ''}`;
+    allPill.dataset.category = 'all';
+    allPill.textContent = 'All';
+    allPill.addEventListener('click', () => this.filterByCategory('all'));
+    categoryPills.appendChild(allPill);
+    
+    // Add category pills
     usedCategories.forEach(category => {
-      const option = document.createElement('option');
-      option.value = category;
-      option.textContent = category.charAt(0).toUpperCase() + category.slice(1);
-      categoryFilter.appendChild(option);
+      const pill = document.createElement('div');
+      pill.className = `category-pill ${this.currentFilter === category ? 'active' : ''}`;
+      pill.dataset.category = category;
+      pill.textContent = category.charAt(0).toUpperCase() + category.slice(1);
+      pill.addEventListener('click', () => this.filterByCategory(category));
+      categoryPills.appendChild(pill);
     });
 
     // Bulk category select
@@ -164,6 +176,12 @@ class FullViewManager {
       option.textContent = category.charAt(0).toUpperCase() + category.slice(1);
       promptCategory.appendChild(option);
     });
+  }
+  
+  filterByCategory(category) {
+    this.currentFilter = category;
+    this.renderCategoryFilters();
+    this.renderPrompts();
   }
 
   renderPrompts() {
@@ -206,7 +224,7 @@ class FullViewManager {
           <div class="prompt-header">
             <div>
               <div class="prompt-title">${this.escapeHtml(prompt.title)}</div>
-              <span class="prompt-category">${prompt.category}</span>
+              <span class="prompt-category" style="background: ${this.getCategoryColor(prompt.category)}; color: white;">${prompt.category}</span>
             </div>
           </div>
           
@@ -811,15 +829,6 @@ class FullViewManager {
     this.showNotification('Shortcut reset to default', 'success');
   }
 
-  openChatGPT() {
-    window.open('https://chatgpt.com', '_blank');
-    this.showNotification(`ChatGPT opened! Use ${this.currentShortcut} to access your prompts`, 'info');
-  }
-
-  openClaude() {
-    window.open('https://claude.ai', '_blank');
-    this.showNotification(`Claude opened! Use ${this.currentShortcut} to access your prompts`, 'info');
-  }
 
   showNotification(message, type = 'info') {
     const notification = document.createElement('div');
@@ -853,6 +862,161 @@ class FullViewManager {
         }
       }, 300);
     }, 3000);
+  }
+
+  async cleanupAllVariableFormats() {
+    try {
+      if (!confirm('This will convert old variable formats ({{var}} and [single]) to our standard {variable} format across ALL your prompts.\n\nMultiple choice options like [opt1/opt2/opt3] will be preserved.\n\nContinue?')) {
+        return;
+      }
+      
+      let convertedCount = 0;
+      
+      this.prompts.forEach(prompt => {
+        const originalContent = prompt.content;
+        const convertedContent = this.convertVariableFormatsImport(prompt.content);
+        
+        if (originalContent !== convertedContent) {
+          prompt.content = convertedContent;
+          convertedCount++;
+        }
+      });
+      
+      if (convertedCount > 0) {
+        await this.savePrompts();
+        this.renderPrompts();
+        this.showNotification(`✅ Cleaned up variable formats in ${convertedCount} prompts!`, 'success');
+      } else {
+        this.showNotification('No variable formats needed cleanup.', 'info');
+      }
+    } catch (error) {
+      console.error('Error during cleanup:', error);
+      this.showNotification('Error during cleanup. Please try again.', 'error');
+    }
+  }
+
+  convertVariableFormatsImport(content) {
+    // Convert double curly braces {{variable}} to {variable}
+    content = content.replace(/\{\{([^}]+)\}\}/g, '{$1}');
+    
+    // Convert single brackets [variable] to {variable} but preserve multiple choice [opt1/opt2/opt3]
+    content = content.replace(/\[([^\]\/]+)\]/g, (match, variable) => {
+      // If it contains a slash, it's a multiple choice - keep as is
+      if (variable.includes('/')) {
+        return match;
+      }
+      // Otherwise convert to curly braces
+      return `{${variable}}`;
+    });
+    
+    return content;
+  }
+
+  // URL Management
+  toggleUrlManager() {
+    const urlManager = document.getElementById('urlManagerModal');
+    if (urlManager.style.display === 'none') {
+      this.showUrlManager();
+    } else {
+      this.hideUrlManager();
+    }
+  }
+
+  async showUrlManager() {
+    await this.loadCustomUrls();
+    this.renderUrlList();
+    document.getElementById('urlManagerModal').style.display = 'block';
+  }
+
+  hideUrlManager() {
+    document.getElementById('urlManagerModal').style.display = 'none';
+  }
+
+  async loadCustomUrls() {
+    try {
+      const result = await chrome.storage.local.get(['supportedUrls']);
+      this.customUrls = result.supportedUrls || [
+        'https://chatgpt.com',
+        'https://chat.openai.com',
+        'https://claude.ai',
+        'https://gemini.google.com',
+        'https://www.perplexity.ai',
+        'https://chat.deepseek.com',
+        'https://grok.x.ai',
+        'https://www.meta.ai',
+        'https://you.com',
+        'https://poe.com',
+        'https://huggingface.co/chat'
+      ];
+      this.updateUrlCount();
+    } catch (error) {
+      console.error('Failed to load custom URLs:', error);
+      this.customUrls = [];
+    }
+  }
+
+  async saveCustomUrls() {
+    try {
+      await chrome.storage.local.set({supportedUrls: this.customUrls});
+      this.updateUrlCount();
+      return true;
+    } catch (error) {
+      console.error('Failed to save custom URLs:', error);
+      return false;
+    }
+  }
+
+  renderUrlList() {
+    const urlList = document.getElementById('urlListModal');
+    urlList.innerHTML = this.customUrls.map((url, index) => `
+      <div style="display: flex; align-items: center; justify-content: space-between; padding: 6px 8px; background: #1e293b; border: 1px solid #334155; border-radius: 4px; margin-bottom: 6px;">
+        <span style="font-size: 11px; color: #e2e8f0; flex: 1; overflow: hidden; text-overflow: ellipsis;">${url}</span>
+        <button onclick="fullViewManager.removeUrl(${index})" style="background: #dc2626; color: white; border: none; padding: 2px 6px; border-radius: 3px; font-size: 10px; cursor: pointer;">Remove</button>
+      </div>
+    `).join('');
+  }
+
+  async showAddUrlPrompt() {
+    const url = prompt('Enter URL to add to supported sites:');
+    if (url && url.trim()) {
+      try {
+        new URL(url.trim()); // Validate URL
+        this.customUrls.push(url.trim());
+        await this.saveCustomUrls();
+        this.renderUrlList();
+        this.showNotification('URL added successfully!', 'success');
+      } catch (error) {
+        this.showNotification('Invalid URL format', 'error');
+      }
+    }
+  }
+
+  async removeUrl(index) {
+    this.customUrls.splice(index, 1);
+    await this.saveCustomUrls();
+    this.renderUrlList();
+    this.showNotification('URL removed', 'success');
+  }
+
+  updateUrlCount() {
+    const urlCount = document.getElementById('urlCountModal');
+    if (urlCount) {
+      urlCount.textContent = `(${this.customUrls.length} URLs)`;
+    }
+  }
+
+  getCategoryColor(category) {
+    const categoryColors = {
+      'general': '#8b5cf6', // purple
+      'writing': '#06b6d4', // cyan  
+      'coding': '#10b981', // emerald
+      'analysis': '#f59e0b', // amber
+      'communication': '#ef4444', // red
+      'creative': '#ec4899', // pink
+      'business': '#3b82f6', // blue
+      'education': '#84cc16' // lime
+    };
+    return categoryColors[category] || '#6b7280'; // default gray
   }
 
   // Draft Data Management
@@ -929,6 +1093,7 @@ class FullViewManager {
 }
 
 // Initialize when DOM is ready
+let fullViewManager;
 document.addEventListener('DOMContentLoaded', () => {
-  new FullViewManager();
+  fullViewManager = new FullViewManager();
 });
