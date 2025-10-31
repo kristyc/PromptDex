@@ -8,6 +8,9 @@ class SidebarManager {
     this.currentShortcut = 'Ctrl+Shift+P';
     this.customUrls = [];
     this.draftData = null;
+    this.defaultLLM = 'https://chatgpt.com';
+    this.showTip = true;
+    this.hasUserSetLLM = false;
     
     this.init();
   }
@@ -16,11 +19,15 @@ class SidebarManager {
     await this.loadData();
     await this.loadDraftData();
     await this.loadCustomUrls();
+    await this.loadDefaultLLM();
+    await this.loadTipVisibility();
     await this.checkForRightClickPrompt();
+    this.renderSettingsContent(); // Ensure import file element exists for onboarding
     this.setupEventListeners();
     this.renderCategories();
     this.renderPrompts();
     this.updateShortcutDisplay();
+    this.updateTipVisibility();
   }
 
   async loadData() {
@@ -58,6 +65,58 @@ class SidebarManager {
       console.error('Failed to load custom URLs:', error);
       this.customUrls = [];
     }
+  }
+
+  async loadDefaultLLM() {
+    try {
+      const result = await chrome.storage.local.get(['defaultLLM']);
+      this.defaultLLM = result.defaultLLM || 'https://chatgpt.com';
+    } catch (error) {
+      console.error('Failed to load default LLM:', error);
+      this.defaultLLM = 'https://chatgpt.com';
+    }
+  }
+
+  async saveDefaultLLM() {
+    try {
+      await chrome.storage.local.set({defaultLLM: this.defaultLLM});
+    } catch (error) {
+      console.error('Failed to save default LLM:', error);
+    }
+  }
+
+  async loadTipVisibility() {
+    try {
+      const result = await chrome.storage.local.get(['showTip', 'hasUserSetLLM']);
+      this.showTip = result.showTip !== false; // Default to true
+      this.hasUserSetLLM = result.hasUserSetLLM || false;
+    } catch (error) {
+      console.error('Failed to load tip visibility:', error);
+      this.showTip = true;
+      this.hasUserSetLLM = false;
+    }
+  }
+
+  async saveTipVisibility() {
+    try {
+      await chrome.storage.local.set({showTip: this.showTip});
+    } catch (error) {
+      console.error('Failed to save tip visibility:', error);
+    }
+  }
+
+  updateTipVisibility() {
+    const tipElement = document.getElementById('shortcutTip');
+    if (tipElement) {
+      tipElement.style.display = this.showTip ? 'block' : 'none';
+    }
+  }
+
+  async dismissTip() {
+    this.showTip = false;
+    await this.saveTipVisibility();
+    this.updateTipVisibility();
+    this.showNotification('Tip dismissed', 'success');
   }
 
   async checkForRightClickPrompt() {
@@ -102,7 +161,11 @@ class SidebarManager {
     document.getElementById('addPromptBtn').addEventListener('click', () => this.showAddPromptModal());
     document.getElementById('fullViewBtn').addEventListener('click', () => this.openFullView());
     document.getElementById('expandBtn').addEventListener('click', () => this.openFullView());
+    document.getElementById('backupBtn').addEventListener('click', () => this.exportData());
     document.getElementById('settingsBtn').addEventListener('click', () => this.showSettingsModal());
+    
+    // Tip dismiss
+    document.getElementById('dismissTip').addEventListener('click', () => this.dismissTip());
 
     // Search
     document.getElementById('searchBox').addEventListener('input', (e) => {
@@ -151,11 +214,36 @@ class SidebarManager {
         this.hideAllModals();
       }
     });
+
+    // Onboarding event listeners (delegated)
+    document.addEventListener('click', async (e) => {
+      if (e.target.classList.contains('llm-option-btn')) {
+        const selectedLLM = e.target.dataset.llm;
+        this.defaultLLM = selectedLLM;
+        this.hasUserSetLLM = true;
+        await this.saveDefaultLLM();
+        await chrome.storage.local.set({hasUserSetLLM: true});
+        this.showNotification('LLM preference saved!', 'success');
+        this.renderPrompts(); // Re-render to show next step
+      }
+      
+      if (e.target.id === 'onboardingAddBtn') {
+        this.showAddPromptModal();
+      }
+      
+      if (e.target.id === 'onboardingImportBtn') {
+        const importFile = document.getElementById('importFile');
+        if (importFile) {
+          importFile.click();
+        }
+      }
+    });
   }
 
   setupSettingsEventListeners() {
     // These will be set up after settings content is loaded
     setTimeout(() => {
+      const defaultLLMSelect = document.getElementById('defaultLLMSelect');
       const exportBtn = document.getElementById('exportData');
       const importBtn = document.getElementById('importData');
       const importFile = document.getElementById('importFile');
@@ -166,6 +254,11 @@ class SidebarManager {
       const addUrl = document.getElementById('addUrl');
       const closeUrlManager = document.getElementById('closeUrlManager');
 
+      if (defaultLLMSelect) defaultLLMSelect.addEventListener('change', (e) => {
+        this.defaultLLM = e.target.value;
+        this.saveDefaultLLM();
+        this.showNotification('Default AI updated!', 'success');
+      });
       if (exportBtn) exportBtn.addEventListener('click', () => this.exportData());
       if (importBtn) importBtn.addEventListener('click', () => importFile.click());
       if (importFile) importFile.addEventListener('change', (e) => this.importData(e));
@@ -216,9 +309,19 @@ class SidebarManager {
     this.renderPrompts();
   }
 
+  highlightSearchTerm(text, searchTerm) {
+    if (!searchTerm) return this.escapeHtml(text);
+    
+    const regex = new RegExp(`(${searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+    return this.escapeHtml(text).replace(regex, '<mark style="background: #f59e0b; color: #000; padding: 1px 2px; border-radius: 2px;">$1</mark>');
+  }
+
   renderPrompts() {
     const promptsList = document.getElementById('promptsList');
     let filteredPrompts = this.prompts;
+
+    // Hide/show UI elements based on whether user has prompts
+    this.updateUIVisibility();
 
     // Filter by category
     if (this.currentCategory !== 'all') {
@@ -235,24 +338,28 @@ class SidebarManager {
     }
 
     if (filteredPrompts.length === 0) {
-      promptsList.innerHTML = `
-        <div class="empty-state">
-          <h3>${this.prompts.length === 0 ? 'No prompts yet' : 'No matches found'}</h3>
-          <p>${this.prompts.length === 0 ? 'Add your first prompt to get started!' : 'Try different search terms or categories'}</p>
-          ${this.prompts.length === 0 ? `
-            <button class="quick-action-btn" id="emptyStateAddBtn2">
-              <i class="fas fa-plus"></i> Add Your First Prompt
-            </button>
-          ` : ''}
-        </div>
-      `;
+      if (this.prompts.length === 0) {
+        // Show onboarding flow
+        promptsList.innerHTML = this.renderOnboarding();
+      } else {
+        // Show no matches found
+        promptsList.innerHTML = `
+          <div class="empty-state">
+            <h3>No matches found</h3>
+            <p>Try different search terms or categories</p>
+          </div>
+        `;
+      }
       return;
     }
 
     promptsList.innerHTML = filteredPrompts.map(prompt => `
       <div class="prompt-item" data-prompt-id="${prompt.id}">
-        <div class="prompt-title">${this.escapeHtml(prompt.title)}</div>
-        <div class="prompt-preview">${this.escapeHtml(this.truncate(prompt.content, 100))}</div>
+        <button class="prompt-action-btn delete delete-top-right" data-action="delete" data-prompt-id="${prompt.id}" title="Delete prompt">
+          <i class="far fa-trash-alt"></i>
+        </button>
+        <div class="prompt-title">${this.highlightSearchTerm(prompt.title, this.currentSearch)}</div>
+        <div class="prompt-preview">${this.highlightSearchTerm(this.truncate(prompt.content, 100), this.currentSearch)}</div>
         <div class="prompt-meta">
           <span class="prompt-category" style="background: ${this.getCategoryColor(prompt.category)}; color: #000000;">
             ${prompt.category}
@@ -261,11 +368,11 @@ class SidebarManager {
             <button class="prompt-action-btn use" data-action="use" data-prompt-id="${prompt.id}">
               <i class="fas fa-play"></i> USE
             </button>
+            <button class="prompt-action-btn copy" data-action="copy" data-prompt-id="${prompt.id}" title="Copy to clipboard">
+              <i class="far fa-copy"></i>
+            </button>
             <button class="prompt-action-btn edit" data-action="edit" data-prompt-id="${prompt.id}">
               <i class="far fa-edit"></i>
-            </button>
-            <button class="prompt-action-btn delete" data-action="delete" data-prompt-id="${prompt.id}">
-              <i class="far fa-trash-alt"></i>
             </button>
           </div>
         </div>
@@ -275,7 +382,7 @@ class SidebarManager {
     // Add click listeners for prompt items
     document.querySelectorAll('.prompt-item').forEach(item => {
       item.addEventListener('click', (e) => {
-        if (!e.target.closest('.prompt-actions')) {
+        if (!e.target.closest('.prompt-actions') && !e.target.closest('.prompt-action-btn')) {
           this.usePrompt(item.dataset.promptId);
         }
       });
@@ -291,6 +398,9 @@ class SidebarManager {
         switch (action) {
           case 'use':
             this.usePrompt(promptId);
+            break;
+          case 'copy':
+            this.copyPrompt(promptId);
             break;
           case 'edit':
             this.editPrompt(promptId);
@@ -328,42 +438,87 @@ class SidebarManager {
     if (!prompt) return;
 
     try {
-      // Get the active tab
-      const [tab] = await chrome.tabs.query({active: true, currentWindow: true});
-      
-      // Check if this is a supported URL
-      const isSupportedUrl = this.customUrls.some(url => {
-        try {
-          const urlPattern = new URL(url);
-          return tab.url.includes(urlPattern.hostname);
-        } catch {
-          return tab.url.includes(url);
-        }
-      });
-
-      if (isSupportedUrl) {
-        // Inject into the page via content script
-        try {
-          await chrome.tabs.sendMessage(tab.id, {
-            action: 'usePrompt',
-            prompt: prompt
-          });
-          this.showNotification('Prompt injected!', 'success');
-        } catch (error) {
-          // Fallback: copy to clipboard and show navigation message
-          await this.copyToClipboard(prompt.content);
-          this.showNotification('Please navigate to ChatGPT or Claude to use prompts.', 'navigate');
-        }
-      } else {
-        // Copy to clipboard and show navigation message
+      // If user selected "none" as default LLM, just copy to clipboard
+      if (this.defaultLLM === 'none') {
         await this.copyToClipboard(prompt.content);
-        this.showNotification('Please navigate to ChatGPT or Claude to use prompts.', 'navigate');
+        this.showNotification('Prompt copied to clipboard! Paste it anywhere.', 'success');
+        return;
       }
+
+      // Always open default LLM in new tab and insert prompt
+      this.showNotification('Opening your preferred LLM...', 'success');
+      const newTab = await chrome.tabs.create({ url: this.defaultLLM });
+      
+      // Set up one-time listener for when this specific tab finishes loading
+      const tabUpdateListener = (tabId, changeInfo, tab) => {
+        if (tabId === newTab.id && changeInfo.status === 'complete') {
+          // Remove listener immediately to prevent memory leaks
+          chrome.tabs.onUpdated.removeListener(tabUpdateListener);
+          
+          // Give dynamic content more time to load
+          setTimeout(async () => {
+            try {
+              // First check if content script is available
+              const pingResponse = await chrome.tabs.sendMessage(newTab.id, {action: 'ping'});
+              
+              if (pingResponse && pingResponse.success) {
+                // Content script is available, try to insert prompt
+                const injectResponse = await chrome.tabs.sendMessage(newTab.id, {
+                  action: 'injectPrompt',
+                  prompt: prompt
+                });
+                
+                if (injectResponse && injectResponse.success) {
+                  this.showNotification('Prompt added successfully!', 'success');
+                } else {
+                  // Injection failed, copy to clipboard
+                  await this.copyToClipboard(prompt.content);
+                  this.showNotification('Prompt copied to clipboard! Paste it into the chat.', 'navigate');
+                }
+              } else {
+                // Content script not available, copy to clipboard
+                await this.copyToClipboard(prompt.content);
+                this.showNotification('Prompt copied to clipboard! Paste it into the chat.', 'navigate');
+              }
+            } catch (error) {
+              // Content script not available or other error, copy to clipboard
+              console.log('Auto-insertion failed, copying to clipboard:', error.message);
+              await this.copyToClipboard(prompt.content);
+              this.showNotification('Prompt copied to clipboard! Paste it into the chat.', 'navigate');
+            }
+          }, 3000); // Increased to 3 seconds for better reliability
+        }
+      };
+      
+      // Add the listener
+      chrome.tabs.onUpdated.addListener(tabUpdateListener);
+      
+      // Safety timeout to remove listener if something goes wrong
+      setTimeout(() => {
+        try {
+          chrome.tabs.onUpdated.removeListener(tabUpdateListener);
+        } catch (e) {
+          // Listener might already be removed, that's ok
+        }
+      }, 15000); // 15 second safety timeout
+      
     } catch (error) {
       console.error('Error using prompt:', error);
       // Fallback: copy to clipboard
       await this.copyToClipboard(prompt.content);
+      this.showNotification('Prompt copied to clipboard! You can now paste it anywhere.', 'success');
+    }
+  }
+
+  async copyPrompt(promptId) {
+    const prompt = this.prompts.find(p => p.id === promptId);
+    if (!prompt) return;
+
+    const success = await this.copyToClipboard(prompt.content);
+    if (success) {
       this.showNotification('Prompt copied to clipboard!', 'success');
+    } else {
+      this.showNotification('Failed to copy prompt', 'error');
     }
   }
 
@@ -452,13 +607,17 @@ class SidebarManager {
   }
 
   async deletePrompt(promptId) {
-    if (!confirm('Delete this prompt?')) return;
+    const prompt = this.prompts.find(p => p.id === promptId);
+    if (!prompt) return;
+    
+    const promptTitle = prompt.title.length > 30 ? prompt.title.substring(0, 30) + '...' : prompt.title;
+    if (!confirm(`Are you sure you want to delete "${promptTitle}"?\n\nThis action cannot be undone.`)) return;
 
     this.prompts = this.prompts.filter(p => p.id !== promptId);
     await this.savePrompts();
     this.renderCategories();
     this.renderPrompts();
-    this.showNotification('Prompt deleted!', 'success');
+    this.showNotification('Prompt deleted successfully', 'success');
   }
 
   async savePrompt() {
@@ -467,7 +626,7 @@ class SidebarManager {
     const category = document.getElementById('promptCategory').value;
 
     if (!content) {
-      this.showNotification('Please enter prompt content', 'error');
+      this.showNotification('Please write your prompt content before saving', 'error');
       return;
     }
 
@@ -549,17 +708,39 @@ class SidebarManager {
 
   renderCategoryList() {
     const categoryList = document.getElementById('categoryList');
-    categoryList.innerHTML = this.categories.map(category => `
-      <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px; background: #0f0f23; border: 1px solid #334155; border-radius: 6px; margin-bottom: 6px;">
-        <span style="color: #e2e8f0;">${category.charAt(0).toUpperCase() + category.slice(1)}</span>
-        <button class="delete-category-btn" data-category="${category}" style="background: #dc2626; color: white; border: none; padding: 4px 8px; border-radius: 4px; font-size: 11px; cursor: pointer;">Delete</button>
-      </div>
-    `).join('');
+    categoryList.innerHTML = this.categories.map((category, index) => {
+      const promptCount = this.prompts.filter(p => p.category === category).length;
+      return `
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: linear-gradient(135deg, rgba(15, 15, 35, 0.8), rgba(30, 41, 59, 0.6)); border: 1px solid #334155; border-radius: 10px; margin-bottom: 8px; transition: all 0.2s ease; position: relative; overflow: hidden;" class="category-item" onmouseover="this.style.transform='translateY(-1px)'; this.style.boxShadow='0 4px 12px rgba(20, 184, 166, 0.2)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none'">
+          <div style="display: flex; align-items: center; gap: 12px; flex: 1;">
+            <div style="width: 8px; height: 8px; border-radius: 50%; background: ${this.getCategoryColor(category)}; flex-shrink: 0;"></div>
+            <div style="flex: 1;">
+              <div style="color: #e2e8f0; font-weight: 600; font-size: 13px;">${category.charAt(0).toUpperCase() + category.slice(1)}</div>
+              <div style="color: #94a3b8; font-size: 11px;">${promptCount} prompt${promptCount === 1 ? '' : 's'}</div>
+            </div>
+          </div>
+          <div style="display: flex; gap: 6px;">
+            <button class="edit-category-btn" data-category="${category}" style="background: rgba(245, 158, 11, 0.8); color: white; border: none; padding: 6px 8px; border-radius: 6px; font-size: 10px; cursor: pointer; transition: all 0.2s;" title="Edit category" onmouseover="this.style.background='rgba(245, 158, 11, 1)'" onmouseout="this.style.background='rgba(245, 158, 11, 0.8)'">
+              <i class="far fa-edit"></i>
+            </button>
+            <button class="delete-category-btn" data-category="${category}" style="background: rgba(220, 38, 38, 0.8); color: white; border: none; padding: 6px 8px; border-radius: 6px; font-size: 10px; cursor: pointer; transition: all 0.2s;" title="Delete category" onmouseover="this.style.background='rgba(220, 38, 38, 1)'" onmouseout="this.style.background='rgba(220, 38, 38, 0.8)'">
+              <i class="far fa-trash-alt"></i>
+            </button>
+          </div>
+        </div>
+      `;
+    }).join('');
     
-    // Add event listeners to delete buttons
+    // Add event listeners to action buttons
     document.querySelectorAll('.delete-category-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         this.deleteCategory(btn.dataset.category);
+      });
+    });
+    
+    document.querySelectorAll('.edit-category-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        this.editCategory(btn.dataset.category);
       });
     });
   }
@@ -568,12 +749,12 @@ class SidebarManager {
     const newCategoryName = document.getElementById('newCategoryName').value.trim().toLowerCase();
     
     if (!newCategoryName) {
-      this.showNotification('Please enter a category name', 'error');
+      this.showNotification('Please type a name for your new category', 'error');
       return;
     }
 
     if (this.categories.includes(newCategoryName)) {
-      this.showNotification('Category already exists', 'error');
+      this.showNotification('That category name is already being used. Try a different one.', 'error');
       return;
     }
 
@@ -586,8 +767,45 @@ class SidebarManager {
     this.showNotification('Category added!', 'success');
   }
 
+  async editCategory(categoryName) {
+    const newName = prompt(`Edit category name:`, categoryName);
+    if (!newName || newName.trim() === '') return;
+
+    const newCategoryName = newName.trim().toLowerCase();
+    if (newCategoryName === categoryName) return;
+
+    if (this.categories.includes(newCategoryName)) {
+      this.showNotification('That category name is already being used. Try a different one.', 'error');
+      return;
+    }
+
+    // Update category in list
+    const categoryIndex = this.categories.indexOf(categoryName);
+    this.categories[categoryIndex] = newCategoryName;
+
+    // Update all prompts with this category
+    this.prompts.forEach(prompt => {
+      if (prompt.category === categoryName) {
+        prompt.category = newCategoryName;
+      }
+    });
+
+    await chrome.storage.local.set({customCategories: this.categories});
+    await this.savePrompts();
+    this.renderCategoryList();
+    this.populateCategorySelect();
+    this.renderCategories();
+    this.renderPrompts();
+    this.showNotification('Category updated successfully!', 'success');
+  }
+
   async deleteCategory(categoryName) {
-    if (!confirm(`Delete category "${categoryName}"? Prompts in this category will be moved to "general".`)) {
+    const promptsInCategory = this.prompts.filter(p => p.category === categoryName).length;
+    const message = promptsInCategory > 0 
+      ? `Delete the "${categoryName}" category?\n\n${promptsInCategory} prompt${promptsInCategory === 1 ? '' : 's'} will be moved to "general" category.`
+      : `Delete the "${categoryName}" category?`;
+    
+    if (!confirm(message)) {
       return;
     }
 
@@ -631,6 +849,27 @@ class SidebarManager {
   renderSettingsContent() {
     const settingsContent = document.getElementById('settingsContent');
     settingsContent.innerHTML = `
+      <!-- Default LLM Section -->
+      <div style="margin-bottom: 20px;">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <i class="fas fa-robot" style="font-size: 16px;"></i>
+            <span style="color: #f97316; font-size: 14px; font-weight: 600;">Default AI</span>
+            <select id="defaultLLMSelect" style="padding: 4px 8px; border: 1px solid #334155; border-radius: 4px; background: #0f0f23; color: #14b8a6; font-size: 13px; min-width: 120px;">
+              <option value="none">None (copy & paste)</option>
+              <option value="https://chatgpt.com">ChatGPT</option>
+              <option value="https://claude.ai">Claude</option>
+              <option value="https://gemini.google.com">Gemini</option>
+              <option value="https://www.perplexity.ai">Perplexity</option>
+              <option value="https://chat.deepseek.com">DeepSeek</option>
+              <option value="https://grok.x.ai">Grok</option>
+              <option value="https://www.meta.ai">Meta AI</option>
+            </select>
+          </div>
+        </div>
+        <p style="margin: 0; font-size: 12px; color: #94a3b8; padding-left: 24px;">Auto-opens when using prompts from non-AI pages (or select None for copy & paste)</p>
+      </div>
+      
       <!-- Shortcuts Section -->
       <div style="margin-bottom: 20px;">
         <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
@@ -702,8 +941,9 @@ class SidebarManager {
       </div>
     `;
 
-    // Update shortcut display
+    // Update shortcut display and default LLM selection
     document.getElementById('shortcutInput').value = this.currentShortcut;
+    document.getElementById('defaultLLMSelect').value = this.defaultLLM;
 
     // Setup event listeners after content is rendered
     this.setupSettingsEventListeners();
@@ -777,7 +1017,7 @@ class SidebarManager {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `promptdx-backup-${new Date().toISOString().split('T')[0]}.json`;
+      a.download = `promptdex-backup-${new Date().toISOString().split('T')[0]}.json`;
       a.click();
       URL.revokeObjectURL(url);
       
@@ -789,9 +1029,56 @@ class SidebarManager {
   }
 
   async importData(event) {
-    // Import functionality implementation...
-    // (Similar to popup.js implementation)
-    this.showNotification('Import functionality coming soon!', 'info');
+    const file = event.target.files[0];
+    if (!file) return;
+
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+      
+      if (!data.prompts || !Array.isArray(data.prompts)) {
+        this.showNotification('Invalid backup file. Please select a valid PromptDex backup.', 'error');
+        return;
+      }
+
+      const importCount = data.prompts.length;
+      if (!confirm(`Import ${importCount} prompt${importCount === 1 ? '' : 's'}?\n\nThis will add to your existing prompts.`)) {
+        return;
+      }
+
+      // Add imported prompts
+      data.prompts.forEach(prompt => {
+        if (prompt.title && prompt.content) {
+          this.prompts.push({
+            ...prompt,
+            id: Date.now().toString() + Math.random().toString(36).substr(2, 9)
+          });
+        }
+      });
+
+      // Import categories if they exist
+      if (data.categories && Array.isArray(data.categories)) {
+        data.categories.forEach(category => {
+          if (!this.categories.includes(category)) {
+            this.categories.push(category);
+          }
+        });
+        await chrome.storage.local.set({customCategories: this.categories});
+      }
+
+      await this.savePrompts();
+      this.renderCategories();
+      this.renderPrompts();
+      this.populateCategorySelect();
+      
+      this.showNotification(`Successfully imported ${importCount} prompts!`, 'success');
+    } catch (error) {
+      console.error('Import failed:', error);
+      this.showNotification('Import failed. Please check the file format and try again.', 'error');
+    }
+    
+    // Reset file input
+    event.target.value = '';
   }
 
   // Additional methods for settings functionality...
@@ -804,21 +1091,188 @@ class SidebarManager {
   }
 
   async cleanupAllVariableFormats() {
-    this.showNotification('Variable cleanup functionality coming soon!', 'info');
+    let updatedCount = 0;
+    
+    this.prompts.forEach(prompt => {
+      const originalContent = prompt.content;
+      let cleanedContent = originalContent;
+      
+      // Convert {{variable}} to {variable}
+      cleanedContent = cleanedContent.replace(/\{\{([^}]+)\}\}/g, '{$1}');
+      
+      // Convert <variable> to {variable} but preserve HTML tags
+      cleanedContent = cleanedContent.replace(/<([a-zA-Z_][a-zA-Z0-9_]*)>/g, (match, varName) => {
+        // Skip if it looks like an HTML tag
+        if (['div', 'span', 'p', 'a', 'img', 'br', 'hr', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'ol', 'li', 'strong', 'em', 'b', 'i'].includes(varName.toLowerCase())) {
+          return match;
+        }
+        return `{${varName}}`;
+      });
+      
+      // Convert single word brackets [variable] to {variable} but preserve choice brackets [opt1/opt2/opt3]
+      cleanedContent = cleanedContent.replace(/\[([a-zA-Z_][a-zA-Z0-9_]*)\]/g, (match, content) => {
+        // If it contains slashes, it's a choice bracket - keep it
+        if (content.includes('/')) {
+          return match;
+        }
+        return `{${content}}`;
+      });
+      
+      if (cleanedContent !== originalContent) {
+        prompt.content = cleanedContent;
+        updatedCount++;
+      }
+    });
+    
+    if (updatedCount > 0) {
+      await this.savePrompts();
+      this.renderPrompts();
+      this.showNotification(`Updated ${updatedCount} prompt${updatedCount === 1 ? '' : 's'} with standardized variable format!`, 'success');
+    } else {
+      this.showNotification('All prompts already use the correct {variable} format.', 'info');
+    }
   }
 
   showUrlManager() {
-    this.showNotification('URL management functionality coming soon!', 'info');
+    this.renderUrlList();
+    document.getElementById('urlManager').style.display = 'block';
+  }
+
+  renderUrlList() {
+    const urlList = document.getElementById('urlList');
+    urlList.innerHTML = this.customUrls.map(url => `
+      <div style="display: flex; justify-content: space-between; align-items: center; padding: 6px 8px; background: #0f0f23; border: 1px solid #334155; border-radius: 4px; margin-bottom: 4px;">
+        <span style="color: #e2e8f0; font-size: 11px; flex: 1; overflow: hidden; text-overflow: ellipsis;">${url}</span>
+        <button class="delete-url-btn" data-url="${url}" style="background: #dc2626; color: white; border: none; padding: 2px 6px; border-radius: 3px; font-size: 10px; cursor: pointer; margin-left: 8px;">×</button>
+      </div>
+    `).join('');
+    
+    // Add event listeners to delete buttons
+    document.querySelectorAll('.delete-url-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        this.removeCustomUrl(btn.dataset.url);
+      });
+    });
   }
 
   addCustomUrl() {
-    this.showNotification('Add URL functionality coming soon!', 'info');
+    const url = prompt('Enter a URL for AI chat sites where you want PromptDex to work:\n\nExamples:\n• https://chatgpt.com\n• https://claude.ai\n• https://gemini.google.com');
+    
+    if (!url) return;
+    
+    // Basic URL validation
+    try {
+      new URL(url);
+    } catch {
+      this.showNotification('Please enter a valid URL (starting with http:// or https://)', 'error');
+      return;
+    }
+    
+    if (this.customUrls.includes(url)) {
+      this.showNotification('This URL is already in your list', 'info');
+      return;
+    }
+    
+    this.customUrls.push(url);
+    this.saveCustomUrls();
+    this.renderUrlList();
+    this.showNotification('URL added successfully!', 'success');
+  }
+
+  removeCustomUrl(url) {
+    if (!confirm(`Remove ${url} from supported sites?`)) return;
+    
+    this.customUrls = this.customUrls.filter(u => u !== url);
+    this.saveCustomUrls();
+    this.renderUrlList();
+    this.showNotification('URL removed', 'success');
+  }
+
+  async saveCustomUrls() {
+    try {
+      await chrome.storage.local.set({supportedUrls: this.customUrls});
+    } catch (error) {
+      console.error('Failed to save custom URLs:', error);
+      this.showNotification('Failed to save URL changes', 'error');
+    }
   }
 
   hideUrlManager() {
     const urlManager = document.getElementById('urlManager');
     if (urlManager) {
       urlManager.style.display = 'none';
+    }
+  }
+
+  updateUIVisibility() {
+    const hasPrompts = this.prompts.length > 0;
+    
+    // Hide/show elements based on whether user has prompts
+    const searchBox = document.getElementById('searchBox');
+    const categories = document.getElementById('categories');
+    const addPromptBtn = document.getElementById('addPromptBtn');
+    const fullViewBtn = document.getElementById('fullViewBtn');
+    const expandBtn = document.getElementById('expandBtn');
+    const backupBtn = document.getElementById('backupBtn');
+    
+    if (searchBox) searchBox.style.display = hasPrompts ? 'block' : 'none';
+    if (categories) categories.style.display = hasPrompts ? 'flex' : 'none';
+    if (addPromptBtn) addPromptBtn.style.display = hasPrompts ? 'block' : 'none';
+    if (fullViewBtn) fullViewBtn.style.display = hasPrompts ? 'block' : 'none';
+    if (expandBtn) expandBtn.style.display = hasPrompts ? 'block' : 'none';
+    if (backupBtn) backupBtn.style.display = hasPrompts ? 'block' : 'none';
+  }
+
+  renderOnboarding() {
+    const hasSetLLM = this.defaultLLM !== 'https://chatgpt.com' || this.hasUserSetLLM;
+    
+    if (!hasSetLLM) {
+      // Step 1: LLM Selection
+      return `
+        <div class="onboarding-state" style="text-align: center; padding: 60px 20px;">
+          <h2 style="color: #f1f5f9; font-size: 24px; margin: 0 0 8px 0; font-weight: 700;">What's your preferred LLM?</h2>
+          <p style="color: #94a3b8; margin: 0 0 24px 0; font-size: 14px;">Choose your default AI assistant</p>
+          
+          <div style="display: flex; flex-direction: column; gap: 12px; max-width: 300px; margin: 0 auto;">
+            <button class="llm-option-btn" data-llm="none" style="padding: 16px; border: 2px solid #334155; border-radius: 12px; background: linear-gradient(135deg, rgba(30, 41, 59, 0.8), rgba(51, 65, 85, 0.4)); color: #e2e8f0; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 12px; font-weight: 600;" onmouseover="this.style.borderColor='#6b7280'; this.style.transform='translateY(-2px)'" onmouseout="this.style.borderColor='#334155'; this.style.transform='translateY(0)'">
+              <i class="fas fa-copy" style="color: #6b7280;"></i>
+              None (copy & paste)
+            </button>
+            <button class="llm-option-btn" data-llm="https://chatgpt.com" style="padding: 16px; border: 2px solid #334155; border-radius: 12px; background: linear-gradient(135deg, rgba(30, 41, 59, 0.8), rgba(51, 65, 85, 0.4)); color: #e2e8f0; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 12px; font-weight: 600;" onmouseover="this.style.borderColor='#10b981'; this.style.transform='translateY(-2px)'" onmouseout="this.style.borderColor='#334155'; this.style.transform='translateY(0)'">
+              <i class="fas fa-robot" style="color: #10b981;"></i>
+              ChatGPT
+            </button>
+            <button class="llm-option-btn" data-llm="https://claude.ai" style="padding: 16px; border: 2px solid #334155; border-radius: 12px; background: linear-gradient(135deg, rgba(30, 41, 59, 0.8), rgba(51, 65, 85, 0.4)); color: #e2e8f0; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 12px; font-weight: 600;" onmouseover="this.style.borderColor='#8b5cf6'; this.style.transform='translateY(-2px)'" onmouseout="this.style.borderColor='#334155'; this.style.transform='translateY(0)'">
+              <i class="fas fa-brain" style="color: #8b5cf6;"></i>
+              Claude
+            </button>
+            <button class="llm-option-btn" data-llm="https://gemini.google.com" style="padding: 16px; border: 2px solid #334155; border-radius: 12px; background: linear-gradient(135deg, rgba(30, 41, 59, 0.8), rgba(51, 65, 85, 0.4)); color: #e2e8f0; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 12px; font-weight: 600;" onmouseover="this.style.borderColor='#06b6d4'; this.style.transform='translateY(-2px)'" onmouseout="this.style.borderColor='#334155'; this.style.transform='translateY(0)'">
+              <i class="fas fa-gem" style="color: #06b6d4;"></i>
+              Gemini
+            </button>
+            <button class="llm-option-btn" data-llm="https://www.perplexity.ai" style="padding: 16px; border: 2px solid #334155; border-radius: 12px; background: linear-gradient(135deg, rgba(30, 41, 59, 0.8), rgba(51, 65, 85, 0.4)); color: #e2e8f0; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 12px; font-weight: 600;" onmouseover="this.style.borderColor='#f59e0b'; this.style.transform='translateY(-2px)'" onmouseout="this.style.borderColor='#334155'; this.style.transform='translateY(0)'">
+              <i class="fas fa-search" style="color: #f59e0b;"></i>
+              Perplexity
+            </button>
+          </div>
+        </div>
+      `;
+    } else {
+      // Step 2: Prompt Creation
+      return `
+        <div class="onboarding-state" style="text-align: center; padding: 60px 20px;">
+          <h2 style="color: #f1f5f9; font-size: 24px; margin: 0 0 8px 0; font-weight: 700;">Now add a prompt</h2>
+          <p style="color: #94a3b8; margin: 0 0 32px 0; font-size: 14px; line-height: 1.5;">Click Add or Highlight any text on a webpage & right click to save as a prompt</p>
+          
+          <button class="quick-action-btn" id="onboardingAddBtn" style="background: linear-gradient(135deg, #14b8a6, #0d9488); color: white; border: none; padding: 16px 32px; border-radius: 12px; font-size: 16px; font-weight: 700; cursor: pointer; box-shadow: 0 4px 15px rgba(20, 184, 166, 0.4); transition: all 0.2s;">
+            <i class="fas fa-plus" style="margin-right: 8px;"></i> Add Your First Prompt
+          </button>
+          
+          <p style="color: #64748b; margin: 16px 0 0 0; font-size: 12px;">
+            <a href="#" id="onboardingImportBtn" style="color: #64748b; text-decoration: underline; cursor: pointer; font-size: 14px; font-weight: 500;">Or import a backup</a>
+          </p>
+        </div>
+      `;
     }
   }
 }

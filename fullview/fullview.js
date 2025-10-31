@@ -184,6 +184,13 @@ class FullViewManager {
     this.renderPrompts();
   }
 
+  highlightSearchTerm(text, searchTerm) {
+    if (!searchTerm) return this.escapeHtml(text);
+    
+    const regex = new RegExp(`(${searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+    return this.escapeHtml(text).replace(regex, '<mark style="background: #f59e0b; color: #000; padding: 1px 2px; border-radius: 2px;">$1</mark>');
+  }
+
   renderPrompts() {
     const promptsGrid = document.getElementById('promptsGrid');
     const emptyState = document.getElementById('emptyState');
@@ -223,12 +230,12 @@ class FullViewManager {
           
           <div class="prompt-header">
             <div>
-              <div class="prompt-title">${this.escapeHtml(prompt.title)}</div>
+              <div class="prompt-title">${this.highlightSearchTerm(prompt.title, this.currentSearch)}</div>
               <span class="prompt-category" style="background: ${this.getCategoryColor(prompt.category)}; color: #000000;">${prompt.category}</span>
             </div>
           </div>
           
-          <div class="prompt-content">${this.escapeHtml(prompt.content)}</div>
+          <div class="prompt-content">${this.highlightSearchTerm(prompt.content, this.currentSearch)}</div>
           
           ${variables.length > 0 || multipleChoice.length > 0 ? `
             <div class="prompt-variables">
@@ -239,6 +246,7 @@ class FullViewManager {
           
           <div class="prompt-actions">
             <button class="prompt-action-btn use" data-action="use" data-prompt-id="${prompt.id}">Use</button>
+            <button class="prompt-action-btn copy" data-action="copy" data-prompt-id="${prompt.id}" title="Copy to clipboard"><i class="far fa-copy"></i></button>
             <button class="prompt-action-btn edit" data-action="edit" data-prompt-id="${prompt.id}">Edit</button>
             <button class="prompt-action-btn delete" data-action="delete" data-prompt-id="${prompt.id}">Delete</button>
           </div>
@@ -270,6 +278,9 @@ class FullViewManager {
         switch (action) {
           case 'use':
             this.usePrompt(promptId);
+            break;
+          case 'copy':
+            this.copyPrompt(promptId);
             break;
           case 'edit':
             this.editPrompt(promptId);
@@ -396,11 +407,84 @@ class FullViewManager {
     }
   }
 
-  usePrompt(promptId) {
+  async usePrompt(promptId) {
     const prompt = this.prompts.find(p => p.id === promptId);
     if (!prompt) return;
 
-    this.showNotification(`Go to ChatGPT/Claude and press ${this.currentShortcut} to use prompts!`, 'info');
+    try {
+      // Check if we're on an AI page first
+      const [tab] = await chrome.tabs.query({active: true, currentWindow: true});
+      const isAIPage = this.isAIPage(tab.url);
+      
+      if (isAIPage) {
+        // Inject directly into the current AI tab
+        try {
+          await chrome.tabs.sendMessage(tab.id, {
+            action: 'injectPrompt',
+            prompt: prompt
+          });
+          this.showNotification('Prompt injected into chat!', 'success');
+          return;
+        } catch (error) {
+          console.log('Injection failed, falling back to new tab');
+        }
+      }
+      
+      // Auto-navigate to default LLM and inject prompt after page loads
+      const defaultLLM = await this.getDefaultLLM();
+      const newTab = await chrome.tabs.create({ url: defaultLLM });
+      this.showNotification('Opening AI chat and injecting prompt...', 'success');
+      
+      // Wait for the tab to load, then inject the prompt
+      setTimeout(async () => {
+        try {
+          await chrome.tabs.sendMessage(newTab.id, {
+            action: 'injectPrompt',
+            prompt: prompt
+          });
+        } catch (error) {
+          // If injection fails, copy to clipboard as fallback
+          console.log('Auto-injection failed, copying to clipboard');
+          await navigator.clipboard.writeText(prompt.content);
+        }
+      }, 3000); // Wait 3 seconds for page to load
+      
+    } catch (error) {
+      console.error('Error using prompt:', error);
+      this.showNotification(`Go to ChatGPT/Claude and press ${this.currentShortcut} to use prompts!`, 'info');
+    }
+  }
+
+  isAIPage(url) {
+    const aiUrls = [
+      'chatgpt.com', 'chat.openai.com', 'claude.ai', 'gemini.google.com',
+      'perplexity.ai', 'chat.deepseek.com', 'grok.x.ai', 'meta.ai',
+      'you.com', 'poe.com', 'huggingface.co'
+    ];
+    return aiUrls.some(aiUrl => url.includes(aiUrl));
+  }
+
+  async getDefaultLLM() {
+    try {
+      const result = await chrome.storage.local.get(['defaultLLM']);
+      return result.defaultLLM || 'https://chatgpt.com';
+    } catch (error) {
+      console.error('Failed to get default LLM:', error);
+      return 'https://chatgpt.com';
+    }
+  }
+
+  async copyPrompt(promptId) {
+    const prompt = this.prompts.find(p => p.id === promptId);
+    if (!prompt) return;
+
+    try {
+      await navigator.clipboard.writeText(prompt.content);
+      this.showNotification('Prompt copied to clipboard!', 'success');
+    } catch (error) {
+      console.error('Failed to copy prompt:', error);
+      this.showNotification('Failed to copy prompt', 'error');
+    }
   }
 
   editPrompt(promptId) {
@@ -412,7 +496,11 @@ class FullViewManager {
   }
 
   async deletePrompt(promptId) {
-    if (!confirm('Delete this prompt? This cannot be undone.')) return;
+    const prompt = this.prompts.find(p => p.id === promptId);
+    if (!prompt) return;
+    
+    const promptTitle = prompt.title.length > 30 ? prompt.title.substring(0, 30) + '...' : prompt.title;
+    if (!confirm(`Are you sure you want to delete "${promptTitle}"?\n\nThis action cannot be undone.`)) return;
 
     this.prompts = this.prompts.filter(p => p.id !== promptId);
     const saved = await this.savePrompts();
@@ -481,7 +569,7 @@ class FullViewManager {
     const category = document.getElementById('promptCategory').value;
 
     if (!content) {
-      this.showNotification('Please enter content', 'error');
+      this.showNotification('Please write your prompt content before saving', 'error');
       return;
     }
 

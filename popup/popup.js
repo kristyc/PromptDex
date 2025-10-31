@@ -125,6 +125,8 @@ class SimplePopupManager {
           this.deletePrompt(promptId);
         } else if (action === 'use') {
           this.handlePromptSelect(promptId);
+        } else if (action === 'copy') {
+          this.copyPrompt(promptId);
         }
       } else {
         const promptItem = e.target.closest('.prompt-item');
@@ -322,7 +324,7 @@ class SimplePopupManager {
       
       if (!content) {
         console.log('No content provided');
-        this.showNotification('Please enter content', 'error');
+        this.showNotification('Please write your prompt content before saving', 'error');
         return;
       }
       
@@ -334,7 +336,7 @@ class SimplePopupManager {
         this.predictTitle();
         const predictedTitle = document.getElementById('promptTitle').value.trim();
         if (!predictedTitle) {
-          this.showNotification('Please enter a title', 'error');
+          this.showNotification('Please give your prompt a title', 'error');
           return;
         }
       }
@@ -410,7 +412,11 @@ class SimplePopupManager {
   }
   
   async deletePrompt(promptId) {
-    if (confirm('Are you sure you want to delete this prompt?')) {
+    const prompt = this.prompts.find(p => p.id === promptId);
+    if (!prompt) return;
+    
+    const promptTitle = prompt.title.length > 30 ? prompt.title.substring(0, 30) + '...' : prompt.title;
+    if (confirm(`Are you sure you want to delete "${promptTitle}"?\n\nThis action cannot be undone.`)) {
       try {
         const promptIndex = this.prompts.findIndex(p => p.id === promptId);
         if (promptIndex >= 0) {
@@ -470,6 +476,13 @@ class SimplePopupManager {
     this.renderPrompts();
   }
   
+  highlightSearchTerm(text, searchTerm) {
+    if (!searchTerm) return this.escapeHtml(text);
+    
+    const regex = new RegExp(`(${searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+    return this.escapeHtml(text).replace(regex, '<mark style="background: #f59e0b; color: #000; padding: 1px 2px; border-radius: 2px;">$1</mark>');
+  }
+
   renderPrompts() {
     const promptsListEl = document.getElementById('promptsList');
     const searchTerm = document.getElementById('searchBox').value.toLowerCase();
@@ -503,12 +516,13 @@ class SimplePopupManager {
     
     promptsListEl.innerHTML = filteredPrompts.map(prompt => `
       <div class="prompt-item" data-prompt-id="${prompt.id}" style="position: relative;">
-        <button class="prompt-action-btn edit" data-action="edit" style="position: absolute; top: 8px; right: 8px; background: #ea580c; color: white; border: none; padding: 4px; border-radius: 4px; font-size: 12px; cursor: pointer; z-index: 2;"><i class="far fa-edit"></i></button>
-        <div class="prompt-title">${this.escapeHtml(prompt.title)}</div>
-        <div class="prompt-preview">${this.escapeHtml(this.truncate(prompt.content, 120))}</div>
+        <button class="prompt-action-btn delete" data-action="delete" style="position: absolute; top: 8px; right: 8px; background: transparent; color: #dc2626; border: none; padding: 4px; border-radius: 4px; font-size: 12px; cursor: pointer; z-index: 2;"><i class="far fa-trash-alt"></i></button>
+        <button class="prompt-action-btn edit" data-action="edit" style="position: absolute; top: 8px; right: 40px; background: #ea580c; color: white; border: none; padding: 4px; border-radius: 4px; font-size: 12px; cursor: pointer; z-index: 2;"><i class="far fa-edit"></i></button>
+        <div class="prompt-title">${this.highlightSearchTerm(prompt.title, searchTerm)}</div>
+        <div class="prompt-preview">${this.highlightSearchTerm(this.truncate(prompt.content, 120), searchTerm)}</div>
         <div class="prompt-actions">
           <button class="prompt-action-btn use" data-action="use">Use</button>
-          <button class="prompt-action-btn delete" data-action="delete" style="position: absolute; bottom: 8px; right: 8px; background: #ea580c; color: white; border: none; padding: 4px; border-radius: 4px; font-size: 12px; cursor: pointer; z-index: 2;"><i class="far fa-trash-alt"></i></button>
+          <button class="prompt-action-btn copy" data-action="copy" title="Copy to clipboard"><i class="far fa-copy"></i></button>
         </div>
       </div>
     `).join('');
@@ -518,6 +532,19 @@ class SimplePopupManager {
     this.renderPrompts();
   }
   
+  async copyPrompt(promptId) {
+    const prompt = this.prompts.find(p => p.id === promptId);
+    if (!prompt) return;
+
+    try {
+      await navigator.clipboard.writeText(prompt.content);
+      this.showNotification('Prompt copied to clipboard!', 'success');
+    } catch (error) {
+      console.error('Failed to copy prompt:', error);
+      this.showNotification('Failed to copy prompt', 'error');
+    }
+  }
+
   async handlePromptSelect(promptId) {
     const prompt = this.prompts.find(p => p.id === promptId);
     if (!prompt) return;
@@ -530,16 +557,40 @@ class SimplePopupManager {
       console.log('Is AI tab:', this.isAITab(activeTab.url));
       
       if (this.isAITab(activeTab.url)) {
-        // With the new embedded approach, instruct user to use keyboard shortcut
-        this.showNotification('Go to the ChatGPT/Claude tab and press Ctrl+Shift+P to open the prompt picker!', 'info');
-        
-        // Close popup after a short delay
-        setTimeout(() => {
+        // Inject directly into the current AI tab
+        try {
+          await chrome.tabs.sendMessage(activeTab.id, {
+            action: 'injectPrompt',
+            prompt: prompt
+          });
+          this.showNotification('Prompt injected into chat!', 'success');
           window.close();
-        }, 3000);
+        } catch (error) {
+          // Fallback: copy to clipboard
+          await navigator.clipboard.writeText(prompt.content);
+          this.showNotification('Prompt copied to clipboard!', 'success');
+          window.close();
+        }
       } else {
-        console.log('Not an AI tab, current URL:', activeTab.url);
-        this.showNotification('Please navigate to ChatGPT or Claude to use prompts.', 'navigate');
+        // Auto-navigate to default LLM and inject prompt after page loads
+        const defaultLLM = await this.getDefaultLLM();
+        const newTab = await chrome.tabs.create({ url: defaultLLM });
+        this.showNotification('Opening AI chat and injecting prompt...', 'success');
+        window.close();
+        
+        // Wait for the tab to load, then inject the prompt
+        setTimeout(async () => {
+          try {
+            await chrome.tabs.sendMessage(newTab.id, {
+              action: 'injectPrompt',
+              prompt: prompt
+            });
+          } catch (error) {
+            // If injection fails, copy to clipboard as fallback
+            console.log('Auto-injection failed, copying to clipboard');
+            await navigator.clipboard.writeText(prompt.content);
+          }
+        }, 3000); // Wait 3 seconds for page to load
       }
     } catch (error) {
       console.error('Failed to check tab:', error);
@@ -655,12 +706,12 @@ class SimplePopupManager {
   async addCategory() {
     const newCategoryName = document.getElementById('newCategoryName').value.trim().toLowerCase();
     if (!newCategoryName) {
-      this.showNotification('Please enter a category name', 'error');
+      this.showNotification('Please type a name for your new category', 'error');
       return;
     }
 
     if (this.categories.includes(newCategoryName)) {
-      this.showNotification('Category already exists', 'error');
+      this.showNotification('That category name is already being used. Try a different one.', 'error');
       return;
     }
 
@@ -1404,6 +1455,16 @@ class SimplePopupManager {
     const urlCount = document.getElementById('urlCount');
     if (urlCount) {
       urlCount.textContent = `(${this.customUrls.length} URLs)`;
+    }
+  }
+
+  async getDefaultLLM() {
+    try {
+      const result = await chrome.storage.local.get(['defaultLLM']);
+      return result.defaultLLM || 'https://chatgpt.com';
+    } catch (error) {
+      console.error('Failed to get default LLM:', error);
+      return 'https://chatgpt.com';
     }
   }
 }

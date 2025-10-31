@@ -3,6 +3,7 @@ class ContentManager {
     console.log('PromptDex content script initializing...');
     this.platform = this.detectPlatform();
     console.log('Detected platform:', this.platform);
+    this.lastFocusedElement = null; // Track the last focused input element
     this.init();
     console.log('PromptDex content script ready');
   }
@@ -10,6 +11,7 @@ class ContentManager {
   init() {
     this.setupMessageListener();
     this.setupPromptPicker();
+    this.setupFocusTracking();
   }
   
   detectPlatform() {
@@ -36,6 +38,76 @@ class ContentManager {
   setupPromptPicker() {
     // Create floating prompt picker (hidden by default)
     this.createPromptPicker();
+  }
+
+  setupFocusTracking() {
+    // Track focus on input fields to know where to inject prompts
+    document.addEventListener('focusin', (e) => {
+      if (this.isInputField(e.target)) {
+        this.lastFocusedElement = e.target;
+        console.log('Tracking focused element:', e.target);
+      }
+    });
+
+    // Setup keyboard shortcut listener (Ctrl+Shift+P)
+    document.addEventListener('keydown', (e) => {
+      if (e.ctrlKey && e.shiftKey && e.key === 'P') {
+        e.preventDefault();
+        this.showPromptPicker();
+      }
+    });
+  }
+
+  isInputField(element) {
+    // Check if element is an input field we can inject text into
+    const tagName = element.tagName.toLowerCase();
+    const type = element.type?.toLowerCase();
+    
+    return (
+      // Standard input fields
+      (tagName === 'input' && ['text', 'search', 'url', 'email'].includes(type)) ||
+      // Textareas
+      tagName === 'textarea' ||
+      // Contenteditable elements
+      element.contentEditable === 'true' ||
+      // Common chat input selectors
+      element.matches('div[role="textbox"]') ||
+      element.matches('[data-testid*="input"]') ||
+      element.matches('[data-testid*="textbox"]')
+    );
+  }
+
+  detectFocusedField() {
+    // First check if we have a tracked focused element that's still valid
+    if (this.lastFocusedElement && 
+        document.contains(this.lastFocusedElement) && 
+        this.isInputField(this.lastFocusedElement)) {
+      return this.lastFocusedElement;
+    }
+
+    // Fall back to checking currently focused element
+    const activeElement = document.activeElement;
+    if (activeElement && this.isInputField(activeElement)) {
+      return activeElement;
+    }
+
+    // Last resort: find any visible input field
+    const inputSelectors = [
+      'input[type="text"]:not([style*="display: none"]):not([style*="display:none"])',
+      'input[type="search"]:not([style*="display: none"]):not([style*="display:none"])',
+      'textarea:not([style*="display: none"]):not([style*="display:none"])',
+      'div[contenteditable="true"]:not([style*="display: none"]):not([style*="display:none"])',
+      '[role="textbox"]:not([style*="display: none"]):not([style*="display:none"])'
+    ];
+
+    for (const selector of inputSelectors) {
+      const element = document.querySelector(selector);
+      if (element && this.isInputField(element)) {
+        return element;
+      }
+    }
+
+    return null;
   }
   
   createPromptPicker() {
@@ -217,13 +289,78 @@ class ContentManager {
       finalPrompt = prompt.content;
     }
     
-    await this.insertIntoChat(finalPrompt);
+    // Try to inject into focused field first
+    const injectedIntoFocusedField = await this.injectIntoFocusedField(finalPrompt);
+    
+    // If focused field injection failed, fall back to platform-specific injection
+    if (!injectedIntoFocusedField) {
+      console.log('Focused field injection failed, falling back to platform-specific injection');
+      await this.insertIntoChat(finalPrompt);
+    }
   }
   
   createVariablePrompt(originalPrompt) {
     return `I'd like you to help me with this prompt. As you work through it, please ask me for any values in double braces like {{variable}} before continuing:
 
 ${originalPrompt}`;
+  }
+
+  async injectIntoFocusedField(text) {
+    const focusedField = this.detectFocusedField();
+    
+    if (!focusedField) {
+      console.log('No focused field found for injection');
+      return false;
+    }
+
+    console.log('Injecting into focused field:', focusedField);
+    
+    try {
+      // Focus the field
+      focusedField.focus();
+      
+      // Handle different types of input fields
+      if (focusedField.tagName.toLowerCase() === 'textarea' || 
+          focusedField.tagName.toLowerCase() === 'input') {
+        // Standard input/textarea
+        const currentValue = focusedField.value || '';
+        const newValue = currentValue + (currentValue ? '\n\n' : '') + text;
+        
+        focusedField.value = newValue;
+        
+        // Position cursor at end
+        focusedField.setSelectionRange(newValue.length, newValue.length);
+        
+        // Trigger events to notify the page
+        focusedField.dispatchEvent(new Event('input', {bubbles: true}));
+        focusedField.dispatchEvent(new Event('change', {bubbles: true}));
+      } else if (focusedField.contentEditable === 'true' || 
+                 focusedField.getAttribute('role') === 'textbox') {
+        // Contenteditable div
+        const currentText = focusedField.textContent || '';
+        const newText = currentText + (currentText ? '\n\n' : '') + text;
+        
+        focusedField.textContent = newText;
+        
+        // Position cursor at end
+        const range = document.createRange();
+        const selection = window.getSelection();
+        range.selectNodeContents(focusedField);
+        range.collapse(false);
+        selection.removeAllRanges();
+        selection.addRange(range);
+        
+        // Trigger events
+        focusedField.dispatchEvent(new Event('input', {bubbles: true}));
+        focusedField.dispatchEvent(new Event('change', {bubbles: true}));
+      }
+      
+      console.log('Successfully injected text into focused field');
+      return true;
+    } catch (error) {
+      console.error('Failed to inject into focused field:', error);
+      return false;
+    }
   }
   
   async insertIntoChat(text) {

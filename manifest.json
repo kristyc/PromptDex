@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "PromptDex",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "Your personal prompt library - save, organize, and deploy AI prompts instantly",
   "permissions": [
     "storage",
@@ -14,7 +14,12 @@
     "https://chat.openai.com/*",
     "https://chatgpt.com/*",
     "https://claude.ai/*",
-    "https://*.claude.ai/*"
+    "https://*.claude.ai/*",
+    "https://gemini.google.com/*",
+    "https://www.perplexity.ai/*",
+    "https://chat.deepseek.com/*",
+    "https://grok.x.ai/*",
+    "https://www.meta.ai/*"
   ],
   "icons": {
     "16": "icons/icon16.png",
@@ -41,10 +46,15 @@
         "https://chat.openai.com/*",
         "https://chatgpt.com/*",
         "https://claude.ai/*",
-        "https://*.claude.ai/*"
+        "https://*.claude.ai/*",
+        "https://gemini.google.com/*",
+        "https://www.perplexity.ai/*",
+        "https://chat.deepseek.com/*",
+        "https://grok.x.ai/*",
+        "https://www.meta.ai/*"
       ],
       "js": [
-        "content/embedded-promptdex.js"
+        "content/content.js"
       ],
       "run_at": "document_idle"
     }
@@ -67,7 +77,12 @@
         "https://chat.openai.com/*",
         "https://chatgpt.com/*",
         "https://claude.ai/*",
-        "https://*.claude.ai/*"
+        "https://*.claude.ai/*",
+        "https://gemini.google.com/*",
+        "https://www.perplexity.ai/*",
+        "https://chat.deepseek.com/*",
+        "https://grok.x.ai/*",
+        "https://www.meta.ai/*"
       ]
     }
   ]

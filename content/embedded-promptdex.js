@@ -7,6 +7,7 @@ class EmbeddedPromptDex {
     this.isVisible = false;
     this.platform = this.detectPlatform();
     this.currentShortcut = 'Ctrl+Shift+P';
+    this.lastFocusedElement = null; // Track the last focused input element
     
     console.log('🚀 PromptDex embedded script starting...');
     console.log('📍 Current URL:', window.location.href);
@@ -219,6 +220,68 @@ class EmbeddedPromptDex {
         this.lastSelectedText = selectedText;
       }
     });
+  }
+
+  setupFocusTracking() {
+    // Track focus on input fields to know where to inject prompts
+    document.addEventListener('focusin', (e) => {
+      if (this.isInputField(e.target)) {
+        this.lastFocusedElement = e.target;
+        console.log('👁️ Tracking focused element:', e.target);
+      }
+    });
+  }
+
+  isInputField(element) {
+    // Check if element is an input field we can inject text into
+    const tagName = element.tagName.toLowerCase();
+    const type = element.type?.toLowerCase();
+    
+    return (
+      // Standard input fields
+      (tagName === 'input' && ['text', 'search', 'url', 'email'].includes(type)) ||
+      // Textareas
+      tagName === 'textarea' ||
+      // Contenteditable elements
+      element.contentEditable === 'true' ||
+      // Common chat input selectors
+      element.matches('div[role="textbox"]') ||
+      element.matches('[data-testid*="input"]') ||
+      element.matches('[data-testid*="textbox"]')
+    );
+  }
+
+  detectFocusedField() {
+    // First check if we have a tracked focused element that's still valid
+    if (this.lastFocusedElement && 
+        document.contains(this.lastFocusedElement) && 
+        this.isInputField(this.lastFocusedElement)) {
+      return this.lastFocusedElement;
+    }
+
+    // Fall back to checking currently focused element
+    const activeElement = document.activeElement;
+    if (activeElement && this.isInputField(activeElement)) {
+      return activeElement;
+    }
+
+    // Last resort: find any visible input field
+    const inputSelectors = [
+      'input[type="text"]:not([style*="display: none"]):not([style*="display:none"])',
+      'input[type="search"]:not([style*="display: none"]):not([style*="display:none"])',
+      'textarea:not([style*="display: none"]):not([style*="display:none"])',
+      'div[contenteditable="true"]:not([style*="display: none"]):not([style*="display:none"])',
+      '[role="textbox"]:not([style*="display: none"]):not([style*="display:none"])'
+    ];
+
+    for (const selector of inputSelectors) {
+      const element = document.querySelector(selector);
+      if (element && this.isInputField(element)) {
+        return element;
+      }
+    }
+
+    return null;
   }
 
   togglePicker() {

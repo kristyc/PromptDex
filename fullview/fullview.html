@@ -338,12 +338,26 @@
     }
     
     .prompt-action-btn.use {
-      background: #14b8a6;
+      background: linear-gradient(135deg, #14b8a6, #0d9488);
       color: white;
+      font-weight: 700;
+      box-shadow: 0 2px 8px rgba(20, 184, 166, 0.3);
+      border: 1px solid rgba(20, 184, 166, 0.4);
     }
     
     .prompt-action-btn.use:hover {
-      background: #0d9488;
+      background: linear-gradient(135deg, #0d9488, #0f766e);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(20, 184, 166, 0.4);
+    }
+    
+    .prompt-action-btn.copy {
+      background: #f59e0b;
+      color: white;
+    }
+    
+    .prompt-action-btn.copy:hover {
+      background: #d97706;
     }
     
     .prompt-action-btn.edit {
