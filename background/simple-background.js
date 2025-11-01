@@ -22,6 +22,8 @@ class SimpleBackground {
   init() {
     this.setupContextMenus();
     this.setupSidePanel();
+    this.setupKeyboardShortcuts();
+    this.setupMessageHandlers();
   }
 
   setupContextMenus() {
@@ -90,6 +92,86 @@ class SimpleBackground {
       console.log('Side panel setup complete');
     } catch (error) {
       console.error('Error setting up side panel:', error);
+    }
+  }
+
+  setupKeyboardShortcuts() {
+    try {
+      console.log('Setting up keyboard shortcuts...');
+      
+      chrome.commands.onCommand.addListener(async (command) => {
+        console.log('Keyboard command received:', command);
+        
+        if (command === 'open-prompt-picker') {
+          // Get the current active tab
+          const [tab] = await chrome.tabs.query({active: true, currentWindow: true});
+          
+          if (tab) {
+            try {
+              // Send message to content script to open prompt picker
+              await chrome.tabs.sendMessage(tab.id, {
+                action: 'openPromptPicker'
+              });
+              console.log('Prompt picker opened via keyboard shortcut');
+            } catch (error) {
+              console.log('Content script not available, opening sidebar instead');
+              // Fallback: open sidebar if content script not available
+              try {
+                await chrome.sidePanel.open({ windowId: tab.windowId });
+                this.showNotification('Prompt picker opened in sidebar', 'info');
+              } catch (sidebarError) {
+                console.error('Failed to open sidebar:', sidebarError);
+                this.showNotification('Unable to open prompt picker. Try reloading the page.', 'error');
+              }
+            }
+          }
+        }
+      });
+      
+      console.log('Keyboard shortcuts setup complete');
+    } catch (error) {
+      console.error('Error setting up keyboard shortcuts:', error);
+    }
+  }
+
+  setupMessageHandlers() {
+    try {
+      console.log('Setting up message handlers...');
+      
+      chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+        console.log('Background received message:', request);
+        
+        if (request.action === 'loadPrompts') {
+          this.handleLoadPrompts(sendResponse);
+          return true; // Keep message channel open for async response
+        }
+        
+        return false;
+      });
+      
+      console.log('Message handlers setup complete');
+    } catch (error) {
+      console.error('Error setting up message handlers:', error);
+    }
+  }
+
+  async handleLoadPrompts(sendResponse) {
+    try {
+      // Load prompts from storage
+      const result = await chrome.storage.local.get(['localPrompts']);
+      const prompts = result.localPrompts || [];
+      
+      console.log('Loaded prompts for picker:', prompts.length);
+      sendResponse({
+        success: true,
+        prompts: prompts
+      });
+    } catch (error) {
+      console.error('Failed to load prompts:', error);
+      sendResponse({
+        success: false,
+        error: error.message
+      });
     }
   }
 

@@ -49,9 +49,9 @@ class ContentManager {
       }
     });
 
-    // Setup keyboard shortcut listener (Ctrl+Shift+P)
+    // Setup keyboard shortcut listener (Ctrl+Shift+L)
     document.addEventListener('keydown', (e) => {
-      if (e.ctrlKey && e.shiftKey && e.key === 'P') {
+      if (e.ctrlKey && e.shiftKey && e.key === 'L') {
         e.preventDefault();
         this.showPromptPicker();
       }

@@ -62,7 +62,7 @@
   "commands": {
     "open-prompt-picker": {
       "suggested_key": {
-        "default": "Ctrl+Shift+P"
+        "default": "Ctrl+Shift+L"
       },
       "description": "Open prompt picker"
     }

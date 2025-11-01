@@ -6,11 +6,9 @@ class FullViewManager {
     this.currentFilter = 'all';
     this.currentSearch = '';
     this.editingPromptId = null;
-    this.currentShortcut = 'Ctrl+Shift+P';
-    this.isRecordingShortcut = false;
     this.draftData = null;
     this.lastSelectedCategory = 'general';
-    
+
     this.init();
   }
 
@@ -18,7 +16,6 @@ class FullViewManager {
     await this.loadData();
     await this.loadDraftData();
     await this.loadLastSelectedCategory();
-    await this.loadCustomUrls();
     this.setupEventListeners();
     this.renderStats();
     this.renderCategoryFilters();
@@ -28,13 +25,10 @@ class FullViewManager {
 
   async loadData() {
     try {
-      const result = await chrome.storage.local.get(['localPrompts', 'customCategories', 'customShortcut']);
+      const result = await chrome.storage.local.get(['localPrompts', 'customCategories']);
       this.prompts = result.localPrompts || [];
       if (result.customCategories) {
         this.categories = result.customCategories;
-      }
-      if (result.customShortcut) {
-        this.currentShortcut = result.customShortcut;
       }
     } catch (error) {
       console.error('Failed to load data:', error);
@@ -53,35 +47,50 @@ class FullViewManager {
 
   setupEventListeners() {
     // Header actions
-    document.getElementById('addPromptBtn').addEventListener('click', () => this.showPromptModal());
-    document.getElementById('settingsBtn').addEventListener('click', () => this.showSettingsModal());
+    const addPromptBtn = document.getElementById('addPromptBtn');
+    const settingsBtn = document.getElementById('settingsBtn');
+    const searchInput = document.getElementById('searchInput');
+    const selectAllBtn = document.getElementById('selectAllBtn');
+    const clearSelectionBtn = document.getElementById('clearSelectionBtn');
+    const bulkCategoryBtn = document.getElementById('bulkCategoryBtn');
+    const bulkDeleteBtn = document.getElementById('bulkDeleteBtn');
+    const savePrompt = document.getElementById('savePrompt');
+    const cancelPrompt = document.getElementById('cancelPrompt');
+    const promptModal = document.getElementById('promptModal');
+
+    if (addPromptBtn) addPromptBtn.addEventListener('click', () => this.showPromptModal());
+    if (settingsBtn) settingsBtn.addEventListener('click', () => this.showSettingsModal());
 
     // Search and filters
-    document.getElementById('searchInput').addEventListener('input', (e) => {
-      this.currentSearch = e.target.value;
-      this.renderPrompts();
-    });
+    if (searchInput) {
+      searchInput.addEventListener('input', (e) => {
+        this.currentSearch = e.target.value;
+        this.renderPrompts();
+      });
+    }
 
     // Category filter is now handled by pills in renderCategoryFilters()
 
     // Selection controls
-    document.getElementById('selectAllBtn').addEventListener('click', () => this.selectAll());
-    document.getElementById('clearSelectionBtn').addEventListener('click', () => this.clearSelection());
+    if (selectAllBtn) selectAllBtn.addEventListener('click', () => this.selectAll());
+    if (clearSelectionBtn) clearSelectionBtn.addEventListener('click', () => this.clearSelection());
 
     // Bulk actions
-    document.getElementById('bulkCategoryBtn').addEventListener('click', () => this.applyBulkCategory());
-    document.getElementById('bulkDeleteBtn').addEventListener('click', () => this.bulkDelete());
+    if (bulkCategoryBtn) bulkCategoryBtn.addEventListener('click', () => this.applyBulkCategory());
+    if (bulkDeleteBtn) bulkDeleteBtn.addEventListener('click', () => this.bulkDelete());
 
     // Modal events
-    document.getElementById('savePrompt').addEventListener('click', () => this.savePrompt());
-    document.getElementById('cancelPrompt').addEventListener('click', () => this.hidePromptModal());
+    if (savePrompt) savePrompt.addEventListener('click', () => this.savePrompt());
+    if (cancelPrompt) cancelPrompt.addEventListener('click', () => this.hidePromptModal());
 
     // Click outside modal to close
-    document.getElementById('promptModal').addEventListener('click', (e) => {
-      if (e.target.id === 'promptModal') {
-        this.hidePromptModal();
-      }
-    });
+    if (promptModal) {
+      promptModal.addEventListener('click', (e) => {
+        if (e.target.id === 'promptModal') {
+          this.hidePromptModal();
+        }
+      });
+    }
 
     document.getElementById('settingsModal').addEventListener('click', (e) => {
       if (e.target.id === 'settingsModal') {
@@ -94,12 +103,7 @@ class FullViewManager {
     document.getElementById('exportDataModal').addEventListener('click', () => this.exportData());
     document.getElementById('importDataModal').addEventListener('click', () => document.getElementById('importFileModal').click());
     document.getElementById('importFileModal').addEventListener('change', (e) => this.importData(e));
-    document.getElementById('recordShortcutModal').addEventListener('click', () => this.startRecordingShortcut());
-    document.getElementById('resetShortcutModal').addEventListener('click', () => this.resetShortcut());
     document.getElementById('cleanupBracketsModal').addEventListener('click', () => this.cleanupAllVariableFormats());
-    document.getElementById('editUrlsModal').addEventListener('click', () => this.toggleUrlManager());
-    document.getElementById('addUrlModal').addEventListener('click', () => this.showAddUrlPrompt());
-    document.getElementById('closeUrlManagerModal').addEventListener('click', () => this.hideUrlManager());
 
     // Auto-predict title when content changes and save draft
     document.getElementById('promptContent').addEventListener('input', () => {
@@ -451,7 +455,7 @@ class FullViewManager {
       
     } catch (error) {
       console.error('Error using prompt:', error);
-      this.showNotification(`Go to ChatGPT/Claude and press ${this.currentShortcut} to use prompts!`, 'info');
+      this.showNotification('Prompt copied to clipboard!', 'success');
     }
   }
 
@@ -697,7 +701,6 @@ class FullViewManager {
 
   showSettingsModal() {
     document.getElementById('settingsModal').style.display = 'flex';
-    document.getElementById('shortcutInputModal').value = this.currentShortcut;
   }
 
   hideSettingsModal() {
@@ -852,70 +855,6 @@ class FullViewManager {
     return true;
   }
 
-  startRecordingShortcut() {
-    this.isRecordingShortcut = true;
-    const recordBtn = document.getElementById('recordShortcutModal');
-    const shortcutInput = document.getElementById('shortcutInputModal');
-    
-    recordBtn.textContent = 'Press Keys...';
-    recordBtn.disabled = true;
-    shortcutInput.value = 'Press your key combination...';
-    shortcutInput.style.background = '#ea580c';
-    
-    document.addEventListener('keydown', this.handleShortcutRecording.bind(this), true);
-  }
-
-  handleShortcutRecording(e) {
-    if (!this.isRecordingShortcut) return;
-    
-    e.preventDefault();
-    e.stopPropagation();
-    
-    const keys = [];
-    if (e.ctrlKey) keys.push('Ctrl');
-    if (e.altKey) keys.push('Alt');
-    if (e.shiftKey) keys.push('Shift');
-    if (e.metaKey) keys.push('Meta');
-    
-    // Add the main key if it's not a modifier
-    if (!['Control', 'Alt', 'Shift', 'Meta'].includes(e.key)) {
-      keys.push(e.key.length === 1 ? e.key.toUpperCase() : e.key);
-      
-      // Only finish recording when we have modifier(s) + a non-modifier key
-      if (keys.length > 1) {
-        const shortcut = keys.join('+');
-        this.finishRecordingShortcut(shortcut);
-      }
-    }
-  }
-
-  async finishRecordingShortcut(shortcut) {
-    this.isRecordingShortcut = false;
-    document.removeEventListener('keydown', this.handleShortcutRecording.bind(this), true);
-    
-    const recordBtn = document.getElementById('recordShortcutModal');
-    const shortcutInput = document.getElementById('shortcutInputModal');
-    
-    recordBtn.textContent = 'Record';
-    recordBtn.disabled = false;
-    shortcutInput.style.background = '#1e293b';
-    
-    this.currentShortcut = shortcut;
-    shortcutInput.value = shortcut;
-    
-    await chrome.storage.local.set({customShortcut: this.currentShortcut});
-    this.showNotification(`Shortcut updated to ${shortcut}`, 'success');
-  }
-
-  async resetShortcut() {
-    this.currentShortcut = 'Ctrl+Shift+P';
-    await chrome.storage.local.set({customShortcut: this.currentShortcut});
-    
-    const shortcutInput = document.getElementById('shortcutInputModal');
-    shortcutInput.value = this.currentShortcut;
-    
-    this.showNotification('Shortcut reset to default', 'success');
-  }
 
 
   showNotification(message, type = 'info') {
@@ -1000,98 +939,6 @@ class FullViewManager {
     return content;
   }
 
-  // URL Management
-  toggleUrlManager() {
-    const urlManager = document.getElementById('urlManagerModal');
-    if (urlManager.style.display === 'none') {
-      this.showUrlManager();
-    } else {
-      this.hideUrlManager();
-    }
-  }
-
-  async showUrlManager() {
-    await this.loadCustomUrls();
-    this.renderUrlList();
-    document.getElementById('urlManagerModal').style.display = 'block';
-  }
-
-  hideUrlManager() {
-    document.getElementById('urlManagerModal').style.display = 'none';
-  }
-
-  async loadCustomUrls() {
-    try {
-      const result = await chrome.storage.local.get(['supportedUrls']);
-      this.customUrls = result.supportedUrls || [
-        'https://chatgpt.com',
-        'https://chat.openai.com',
-        'https://claude.ai',
-        'https://gemini.google.com',
-        'https://www.perplexity.ai',
-        'https://chat.deepseek.com',
-        'https://grok.x.ai',
-        'https://www.meta.ai',
-        'https://you.com',
-        'https://poe.com',
-        'https://huggingface.co/chat'
-      ];
-      this.updateUrlCount();
-    } catch (error) {
-      console.error('Failed to load custom URLs:', error);
-      this.customUrls = [];
-    }
-  }
-
-  async saveCustomUrls() {
-    try {
-      await chrome.storage.local.set({supportedUrls: this.customUrls});
-      this.updateUrlCount();
-      return true;
-    } catch (error) {
-      console.error('Failed to save custom URLs:', error);
-      return false;
-    }
-  }
-
-  renderUrlList() {
-    const urlList = document.getElementById('urlListModal');
-    urlList.innerHTML = this.customUrls.map((url, index) => `
-      <div style="display: flex; align-items: center; justify-content: space-between; padding: 6px 8px; background: #1e293b; border: 1px solid #334155; border-radius: 4px; margin-bottom: 6px;">
-        <span style="font-size: 11px; color: #e2e8f0; flex: 1; overflow: hidden; text-overflow: ellipsis;">${url}</span>
-        <button onclick="fullViewManager.removeUrl(${index})" style="background: #dc2626; color: white; border: none; padding: 2px 6px; border-radius: 3px; font-size: 10px; cursor: pointer;">Remove</button>
-      </div>
-    `).join('');
-  }
-
-  async showAddUrlPrompt() {
-    const url = prompt('Enter URL to add to supported sites:');
-    if (url && url.trim()) {
-      try {
-        new URL(url.trim()); // Validate URL
-        this.customUrls.push(url.trim());
-        await this.saveCustomUrls();
-        this.renderUrlList();
-        this.showNotification('URL added successfully!', 'success');
-      } catch (error) {
-        this.showNotification('Invalid URL format', 'error');
-      }
-    }
-  }
-
-  async removeUrl(index) {
-    this.customUrls.splice(index, 1);
-    await this.saveCustomUrls();
-    this.renderUrlList();
-    this.showNotification('URL removed', 'success');
-  }
-
-  updateUrlCount() {
-    const urlCount = document.getElementById('urlCountModal');
-    if (urlCount) {
-      urlCount.textContent = `(${this.customUrls.length} URLs)`;
-    }
-  }
 
   getCategoryColor(category) {
     const categoryColors = {

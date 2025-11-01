@@ -21,19 +21,20 @@
     }
     
     .container {
-      padding: 24px;
+      padding: 16px;
       min-height: 100vh;
       display: flex;
       flex-direction: column;
-      gap: 20px;
+      gap: 12px;
+      position: relative;
     }
     
     .header {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 16px 20px;
-      margin: -24px -24px 0 -24px;
+      padding: 12px 16px;
+      margin: -16px -16px 0 -16px;
       background: linear-gradient(135deg, rgba(26, 32, 46, 0.8), rgba(15, 15, 35, 0.9));
       border-bottom: 2px solid rgba(20, 184, 166, 0.1);
       backdrop-filter: blur(10px);
@@ -79,19 +80,30 @@
       background: #374151;
       color: #e2e8f0;
     }
+
+    /* Orange add button - primary CTA */
+    #addPromptBtnHeader {
+      color: #fb923c;
+    }
+
+    #addPromptBtnHeader:hover {
+      background: rgba(251, 146, 60, 0.1);
+      color: #f97316;
+    }
     
     .search-box {
       width: 100%;
-      padding: 14px 18px 14px 45px;
+      padding: 12px 16px 12px 40px;
       border: 2px solid #334155;
-      border-radius: 12px;
-      margin-bottom: 20px;
+      border-radius: 10px;
+      margin-bottom: 0;
       font-size: 14px;
       background: linear-gradient(135deg, rgba(30, 41, 59, 0.8), rgba(51, 65, 85, 0.4));
       color: #e2e8f0;
       transition: all 0.3s ease;
       backdrop-filter: blur(10px);
       position: relative;
+      z-index: 0;
     }
     
     .search-box::before {
@@ -117,10 +129,13 @@
     .categories {
       display: flex;
       gap: 8px;
-      margin-bottom: 16px;
+      margin-bottom: 8px;
       overflow-x: auto;
+      padding-top: 4px;
       padding-bottom: 4px;
       flex-wrap: wrap;
+      position: relative;
+      z-index: 1;
     }
     
     .categories::-webkit-scrollbar {
@@ -181,9 +196,9 @@
     }
     
     .quick-actions {
-      display: flex;
+      display: none;
       gap: 8px;
-      margin-bottom: 16px;
+      margin-bottom: 0;
     }
     
     .quick-action-btn {
@@ -226,7 +241,9 @@
     .prompts-list {
       flex: 1;
       overflow-y: auto;
+      overflow-x: visible;
       min-height: 200px;
+      padding-top: 4px;
     }
     
     .prompts-list::-webkit-scrollbar {
@@ -244,10 +261,10 @@
     }
     
     .prompt-item {
-      padding: 20px;
+      padding: 16px;
       border: 1px solid #334155;
-      border-radius: 16px;
-      margin-bottom: 16px;
+      border-radius: 12px;
+      margin-bottom: 10px;
       cursor: pointer;
       transition: all 0.3s ease;
       background: linear-gradient(135deg, rgba(30, 41, 59, 0.8), rgba(51, 65, 85, 0.4));
@@ -271,6 +288,7 @@
       border-color: #14b8a6;
       transform: translateY(-2px);
       box-shadow: 0 8px 25px rgba(20, 184, 166, 0.15), 0 4px 12px rgba(0, 0, 0, 0.3);
+      z-index: 2;
     }
     
     .prompt-title {
@@ -357,7 +375,7 @@
       opacity: 0;
       transition: opacity 0.2s ease;
       background: transparent;
-      color: #64748b;
+      color: #ffffff;
       border: 1px solid transparent;
       padding: 6px;
       border-radius: 6px;
@@ -367,6 +385,8 @@
       align-items: center;
       justify-content: center;
       font-size: 12px;
+      z-index: 10;
+      cursor: pointer;
     }
     
     .prompt-item:hover .prompt-action-btn.delete-top-right {
@@ -426,8 +446,8 @@
       background: #1e293b;
       border: 1px solid #334155;
       border-radius: 8px;
-      padding: 12px;
-      margin-bottom: 16px;
+      padding: 10px;
+      margin-bottom: 0;
       font-size: 12px;
     }
     
@@ -496,6 +516,29 @@
       height: 2px;
       background: linear-gradient(90deg, #f97316, #14b8a6);
       border-radius: 1px;
+    }
+
+    .modal-delete-btn {
+      position: absolute;
+      right: 0;
+      top: 0;
+      background: transparent;
+      border: none;
+      color: white;
+      cursor: pointer;
+      padding: 8px;
+      border-radius: 6px;
+      font-size: 16px;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal-delete-btn:hover {
+      background: rgba(239, 68, 68, 0.2);
+      color: #ef4444;
+      transform: scale(1.05);
     }
     
     .modal-input {
@@ -593,24 +636,264 @@
     }
     
     .close-btn {
-      background: none;
-      border: none;
-      color: #94a3b8;
+      background: rgba(148, 163, 184, 0.1);
+      border: 1px solid #334155;
+      color: #e2e8f0;
       cursor: pointer;
-      font-size: 24px;
+      font-size: 28px;
       padding: 4px;
-      width: 32px;
-      height: 32px;
+      width: 36px;
+      height: 36px;
       display: flex;
       align-items: center;
       justify-content: center;
+      border-radius: 6px;
+      transition: all 0.2s;
+      font-weight: 300;
+    }
+
+    .close-btn:hover {
+      background: #ef4444;
+      color: #ffffff;
+      border-color: #ef4444;
+      transform: scale(1.05);
+    }
+
+    /* Compact View Styles - List-based layout for better scanning */
+
+    /* Hide category pills in compact view */
+    body.compact-view .categories {
+      display: none;
+    }
+
+    /* Show add button in header for all views */
+    #addPromptBtnHeader {
+      display: block !important;
+    }
+
+    /* Category dropdown - hidden */
+    .category-dropdown {
+      display: none;
+    }
+
+    body.compact-view .prompt-item {
+      padding: 10px 12px;
+      margin-bottom: 4px;
+      border-radius: 6px;
+      background: transparent;
+      border: 1px solid transparent;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      min-height: auto;
+      cursor: pointer;
+      overflow: visible;
+    }
+
+    body.compact-view .prompt-item:hover {
+      background: rgba(51, 65, 85, 0.4);
+      border-color: rgba(20, 184, 166, 0.3);
+      transform: none;
+      box-shadow: none;
+    }
+
+    body.compact-view .prompt-title {
+      cursor: pointer;
+    }
+
+    body.compact-view .prompt-item::before {
+      display: none;
+    }
+
+    body.compact-view .prompt-title {
+      font-size: 13px;
+      margin-bottom: 0;
+      line-height: 1.4;
+      flex: 1;
+      font-weight: 600;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    body.compact-view .prompt-preview {
+      display: none;
+    }
+
+    body.compact-view .prompt-meta {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+      overflow: visible;
+    }
+
+    body.compact-view .prompt-category {
+      font-size: 0;
+      padding: 0;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      display: inline-block;
+      position: relative;
+      background: currentColor;
+    }
+
+    body.compact-view .prompt-category::after {
+      content: attr(data-category);
+      position: absolute;
+      left: 50%;
+      top: -30px;
+      transform: translateX(-50%);
+      background: #1e293b;
+      color: #e2e8f0;
+      padding: 4px 8px;
       border-radius: 4px;
+      font-size: 11px;
+      white-space: nowrap;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s;
+      z-index: 100;
+      text-transform: capitalize;
+    }
+
+    body.compact-view .prompt-category:hover::after {
+      opacity: 1;
+    }
+
+    body.compact-view .prompt-actions {
+      opacity: 1;
+      display: flex;
+      gap: 4px;
+      overflow: visible;
+      position: relative;
+    }
+
+    body.compact-view .prompt-action-btn {
+      padding: 4px 8px;
+      font-size: 11px;
+      border-radius: 4px;
+    }
+
+    body.compact-view .prompt-action-btn.use {
+      padding: 5px 10px;
+      font-size: 11px;
+    }
+
+    body.compact-view .prompt-action-btn.copy,
+    body.compact-view .prompt-action-btn.edit {
+      background: transparent;
+      color: #94a3b8;
+      border: none;
+    }
+
+    body.compact-view .prompt-action-btn.copy:hover,
+    body.compact-view .prompt-action-btn.edit:hover {
+      background: rgba(51, 65, 85, 0.6);
+      color: #e2e8f0;
+    }
+
+    body.compact-view .prompt-action-btn.delete-top-right {
+      display: none;
+    }
+
+    /* Hide copy button in compact view - click prompt to copy */
+    body.compact-view .prompt-action-btn.copy {
+      display: none;
+    }
+
+    /* Hide edit button in compact view (moved to menu) */
+    body.compact-view .prompt-action-btn.edit {
+      display: none;
+    }
+
+    /* Hide USE button in compact view - click prompt to use */
+    body.compact-view .prompt-action-btn.use {
+      display: none;
+    }
+
+    /* 3-dot menu for compact view */
+    .prompt-menu {
+      position: relative;
+      display: none;
+      flex-shrink: 0;
+    }
+
+    body.compact-view .prompt-menu {
+      display: block;
+    }
+
+    .prompt-menu-btn {
+      background: transparent;
+      border: none;
+      color: #94a3b8;
+      cursor: pointer;
+      padding: 6px 8px;
+      border-radius: 4px;
+      font-size: 14px;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .prompt-menu-btn:hover {
+      background: rgba(51, 65, 85, 0.6);
+      color: #e2e8f0;
+    }
+
+    .prompt-menu-dropdown {
+      position: absolute;
+      right: 0;
+      top: calc(100% + 4px);
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      padding: 4px;
+      min-width: 140px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+      z-index: 1000;
+      display: none;
+    }
+
+    .prompt-menu-dropdown.show {
+      display: block;
+    }
+
+    .prompt-menu-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      color: #e2e8f0;
+      background: transparent;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 500;
+      width: 100%;
+      text-align: left;
       transition: all 0.2s;
     }
-    
-    .close-btn:hover {
-      background: #374151;
-      color: #e2e8f0;
+
+    .prompt-menu-item:hover {
+      background: rgba(51, 65, 85, 0.8);
+    }
+
+    .prompt-menu-item i {
+      width: 14px;
+      text-align: center;
+    }
+
+    .prompt-menu-item.delete-item {
+      color: #ef4444;
+    }
+
+    .prompt-menu-item.delete-item:hover {
+      background: rgba(239, 68, 68, 0.1);
     }
   </style>
 </head>
@@ -622,6 +905,7 @@
         <div class="title">PromptDex</div>
       </div>
       <div class="header-actions">
+        <button id="addPromptBtnHeader" class="header-btn" title="Add Prompt"><i class="fas fa-plus"></i></button>
         <button id="expandBtn" class="header-btn" title="Full View"><i class="fas fa-expand"></i></button>
         <button id="backupBtn" class="header-btn" title="Backup Prompts"><i class="fas fa-save"></i></button>
         <button id="settingsBtn" class="header-btn" title="Settings"><i class="fas fa-cog"></i></button>
@@ -631,12 +915,11 @@
     <div class="shortcut-info" id="shortcutTip">
       <div style="display: flex; align-items: center; justify-content: space-between;">
         <div>
-          <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
-            <i class="far fa-keyboard" style="color: #f97316;"></i>
-            <span style="font-weight: 600; color: #f97316;">Quick Access:</span>
-            <span class="shortcut-key">Ctrl+Shift+P</span>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <i class="far fa-lightbulb" style="color: #f97316;"></i>
+            <span style="font-weight: 600; color: #f97316;">Tip:</span>
+            <span style="color: #94a3b8;">Highlight text on any webpage and right click to save it as a prompt</span>
           </div>
-          <div style="color: #94a3b8;">You can highlight text on any webpage and right click to save it as a prompt</div>
         </div>
         <button id="dismissTip" style="background: none; border: none; color: #64748b; cursor: pointer; padding: 4px; border-radius: 4px; transition: all 0.2s;" title="Dismiss tip">
           <i class="fas fa-times" style="font-size: 12px;"></i>
@@ -654,7 +937,11 @@
     </div>
     
     <input type="text" id="searchBox" class="search-box" placeholder="Search prompts...">
-    
+
+    <select class="category-dropdown" id="categoryDropdown">
+      <option value="all">All Categories</option>
+    </select>
+
     <div class="categories" id="categories">
       <div class="category-tab active" data-category="all">All</div>
     </div>
@@ -675,10 +962,14 @@
   <!-- Add/Edit Prompt Modal -->
   <div class="modal-overlay" id="addPromptModal">
     <div class="modal">
-      <h3 class="modal-title" id="modalTitle">Add New Prompt</h3>
+      <h3 class="modal-title" id="modalTitle">
+        Add New Prompt
+        <button id="deletePromptFromModal" class="modal-delete-btn" style="display: none;" title="Delete prompt">
+          <i class="far fa-trash-alt"></i>
+        </button>
+      </h3>
       <div style="margin-bottom: 12px; padding: 10px; background: #0f0f23; border: 1px solid #334155; border-radius: 6px; font-size: 12px; color: #94a3b8; line-height: 1.4;">
-        <i class="far fa-lightbulb" style="color: #f97316;"></i> <strong style="color: #f97316;">Variables:</strong> Use {variable} for user input • Use [option1/option2/option3] for multiple choice<br>
-        <span style="font-size: 11px; color: #64748b;">Legacy formats {{var}}, &lt;var&gt;, var[name] will be auto-converted</span>
+        <i class="far fa-lightbulb" style="color: #f97316;"></i> <strong style="color: #f97316;">Variables:</strong> Use {variable} for user input • Use [option1/option2/option3] for multiple choice
       </div>
       <textarea id="promptContent" class="modal-input modal-textarea" placeholder="Enter prompt content...
 
@@ -729,7 +1020,7 @@ Examples:
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1px solid #334155;">
         <h3 class="modal-title" style="margin: 0; font-size: 20px;">Settings</h3>
         <div style="display: flex; align-items: center; gap: 16px;">
-          <span style="font-size: 12px; color: #94a3b8; background: #0f0f23; padding: 4px 8px; border-radius: 4px;">v1.1</span>
+          <span id="versionDisplay" style="font-size: 12px; color: #94a3b8; background: #0f0f23; padding: 4px 8px; border-radius: 4px;">v2.0.0</span>
           <button id="closeSettings" class="close-btn">×</button>
         </div>
       </div>
